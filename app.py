@@ -520,11 +520,15 @@ class MainWindow(QMainWindow):
             raise ValueError(f"couldnt extract mission id from: {fname}")
 
     def get_mission_location_from_path(self, fname):
-        pattern = r"BeamNG\.drive\\\d\.\d+\\(.*)\\gameplay"
+        # pattern = r"BeamNG\.drive\\\d\.\d+\\(.*)\\gameplay"
+        pattern = r"BeamNG\.drive\\\d\.\d+\\(?:.*?)gameplay\\missions\\(.+)\\pacenotes.pacenotes.json"
         match = re.search(pattern, fname)
+        print(f"checking for mission id: {fname}")
 
         if match:
-            return match.group(1)
+            m = match.group(1)
+            print(f"found: {m}")
+            return m
         else:
             raise ValueError(f"couldnt extract mission id from: {fname}")
     
