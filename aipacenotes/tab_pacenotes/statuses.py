@@ -1,0 +1,5 @@
+PN_STATUS_UNKNOWN = '?'
+PN_STATUS_OK = 'ok'
+PN_STATUS_NEEDS_SYNC = 'needs_sync'
+PN_STATUS_UPDATING = 'updating'
+PN_STATUS_ERROR = 'error'
