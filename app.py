@@ -3,18 +3,13 @@
 import sys
 import os
 
-from PyQt6 import (
-    QtGui,
-)
-
-from PyQt6.QtWidgets import (
-    QApplication,
-)
+from PyQt6 import QtGui
+from PyQt6.QtWidgets import QApplication
 
 from aipacenotes.main_window import MainWindow
 
-def main():
-    # set the windows process' id in order to get the desired task bar icon.
+# set the windows process' id in order to get the desired task bar icon.
+def set_windows_app_id():
     try:
         from ctypes import windll  # Only exists on Windows.
         myappid = 'com.aipacenotes.desktop.v1'
@@ -22,6 +17,7 @@ def main():
     except ImportError:
         pass
 
+def start_app():
     app = QApplication(sys.argv)
     basedir = os.path.dirname(__file__)
     app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'icons', 'aipacenotes.ico')))
@@ -31,6 +27,10 @@ def main():
     w.showMaximized()
     w.show()
     app.exec()
+
+def main():
+    set_windows_app_id()
+    start_app()
 
 if __name__ == '__main__':
     main()

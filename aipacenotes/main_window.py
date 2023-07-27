@@ -3,8 +3,6 @@ import json
 import os
 import re
 
-import requests
-
 from PyQt6.QtCore import (
     Qt,
     pyqtSignal,
@@ -38,6 +36,8 @@ from aipacenotes.tab_pacenotes import (
 )
 
 from aipacenotes.tab_pacenotes import statuses
+from aipacenotes import client as aip_client
+from aipacenotes.settings import SettingsManager
 
 class MainWindow(QMainWindow):
     
@@ -179,6 +179,7 @@ class MainWindow(QMainWindow):
             # QPushButton:disabled { background-color: green; }
             # """)
 
+            self.load_settings()
             self.load_pacenotes()
         else:
             self.controls_label.setText("Pacenotes are not being updated.")
@@ -192,6 +193,8 @@ class MainWindow(QMainWindow):
         # self.update_pacenotes_info_label()
         self.clean_up_orphaned_audio(self.pacenotes_data, self.root_path)
         self.refresh_pacenotes_data()
+        if not aip_client.healthcheck_rate_limited():
+            raise RuntimeError("fuck")
         self.update_pacenotes_audio()
     
     def update_pacenotes_audio(self):
@@ -207,22 +210,9 @@ class MainWindow(QMainWindow):
                 # print("submitted note")
 
     def update_pacenote(self, pacenote):
-        # print("update_pacenote:", threading.current_thread().name)
         print(f"update_pacenote '{pacenote['note_text']}'")
 
-        url = "https://pacenotes-concurrent-mo5q6vt2ea-uw.a.run.app/pacenotes/audio/create"
-
-        data = {
-            "note_text": pacenote['note_text'],
-            "voice_name": pacenote['voice_name'],
-            "language_code": pacenote['language_code'],
-        }
-
-        headers = {
-            "Content-Type": "application/json"
-        }
-
-        response = requests.post(url, data=json.dumps(data), headers=headers)
+        response = aip_client.make_request(pacenote)
 
         if response.status_code == 200:
             audio_path = pacenote['audio_path']
@@ -252,6 +242,9 @@ class MainWindow(QMainWindow):
 
         self.pacenote_updated.emit(pacenote)
         return res
+
+    def on_tree_item_clicked(self, item, column):
+        print(f'Item clicked: {item.full_path}')
     
     def on_pacenote_updated(self, pacenote):
         # print("on_pacenote_updated:", threading.current_thread().name)
@@ -260,8 +253,13 @@ class MainWindow(QMainWindow):
         self.update_pacenotes_info_label()
         self.refresh_pacenotes_data()
     
+    def load_settings(self):
+        self.settings_manager = SettingsManager()
+        # print(self.settings_manager.settings)
+    
     def load_pacenotes(self):
-        home_dir = os.path.expanduser('~')
+        home_dir = os.environ.get('HOME', os.environ.get('USERPROFILE'))
+
         ver = '0.29'
         # ver = 'latest' # TODO doesnt work
         root_path = os.path.join(home_dir, 'AppData', 'Local', 'BeamNG.drive', ver)
@@ -528,6 +526,3 @@ class MainWindow(QMainWindow):
             return idx[idx_key]
         else:
             raise ValueError("parent_key is None")
-
-    def on_tree_item_clicked(self, item, column):
-        print(f'Item clicked: {item.full_path}')
