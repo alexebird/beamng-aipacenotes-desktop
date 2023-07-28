@@ -1,7 +1,7 @@
 import pathlib
-import json
 import os
 import re
+import time
 
 from PyQt6.QtCore import (
     Qt,
@@ -32,16 +32,33 @@ from aipacenotes.tab_pacenotes import (
     ContextMenuTreeWidget,
     TimerThread,
     TaskManager,
+    PacenotesManager,
     PacenotesTreeWidgetItem,
 )
 
-from aipacenotes.tab_pacenotes import statuses
+from aipacenotes.tab_pacenotes import (
+    statuses,
+    Pacenote,
+)
 from aipacenotes import client as aip_client
 from aipacenotes.settings import SettingsManager
 
+import time
+
+pacenotes_file_pattern = '*.pacenotes.json'
+
+class Benchmark:
+    def __init__(self):
+        self.start_time = time.time()
+
+    def stop(self, message):
+        elapsed_time = time.time() - self.start_time
+        ms = int(elapsed_time * 1000)
+        print(f"{message}: {ms}ms")
+
 class MainWindow(QMainWindow):
     
-    pacenote_updated = pyqtSignal(dict)
+    pacenote_updated = pyqtSignal(Pacenote)
 
     def __init__(self):
         super().__init__()
@@ -91,7 +108,7 @@ class MainWindow(QMainWindow):
 
         # Add a QTreeWidget to the left pane
         self.tree = ContextMenuTreeWidget()
-        self.tree.setFixedWidth(400)
+        self.tree.setFixedWidth(500)
         self.tree.setHeaderLabel("Pacenotes Files")
         self.tree.itemClicked.connect(self.on_tree_item_clicked)
         self.splitter.addWidget(self.tree)
@@ -104,8 +121,8 @@ class MainWindow(QMainWindow):
         self.pacenotes_info_label = QLabel("This is a label\nFoobar", self.right_pane)
         self.right_layout.addWidget(self.pacenotes_info_label)
 
-        self.table = QTableWidget(0, 7)  
-        self.table.setHorizontalHeaderLabels(['Status', 'Pacenote', 'Audio File', 'Pacenote Name', 'Pacenotes Version Name', 'Mission ID', 'Location']) 
+        self.table = QTableWidget(0, 8)  
+        self.table.setHorizontalHeaderLabels(['Status', 'Updated At', 'Pacenote', 'Audio File', 'Pacenote Name', 'Pacenotes Version Name', 'Mission ID', 'Location']) 
         # Set table header to stretch to the size of the window
 
         header = self.table.horizontalHeader()       
@@ -156,6 +173,10 @@ class MainWindow(QMainWindow):
         self.task_manager = TaskManager(10)
         self.update_pacenotes_info_label()
 
+        # Managers live for the lifetime of the program so they can detect changes across pacenote file scans.
+        self.settings_manager = SettingsManager()
+        self.pacenotes_manager = PacenotesManager(self.settings_manager)
+
         self.pacenote_updated.connect(self.on_pacenote_updated)
 
         self.on_toggle(True)
@@ -164,14 +185,27 @@ class MainWindow(QMainWindow):
         self.pacenotes_info_label.setText(f"""
         Updating pacenotes: {self.task_manager.get_future_count()}
         """)
+    
+    def set_controls_label_enabled_message(self):
+        self.controls_label.setText(f"Pacenotes are being updated every {self.timeout_ms / 1000} seconds.")
+    
+    def set_controls_label_disabled_message(self):
+        self.controls_label.setText("Pacenotes are not being updated.")
+    
+    def set_controls_label_healthcheck_message(self):
+        self.controls_label.setText("Connecting to pacenotes server...")
 
     def on_toggle(self, checked):
-        # Change the button text depending on the state
         if checked:
-            # TODO refresh pacenotes data when toggling ON
-            self.controls_label.setText(f"Pacenotes are being updated every {self.timeout_ms / 1000} seconds.")
+            self.set_controls_label_enabled_message()
             self.on_off_button.setText("On")
+
+            # only re-load settings when enabling the timer, not every cycle.
+            self.settings_manager.load()
+
+            self.on_timer_timeout()
             self.timer_thread.enable()
+
             # self.on_off_button.setStyleSheet("""
             # QPushButton { background-color: green; }
             # QPushButton:pressed { background-color: green; }
@@ -179,43 +213,99 @@ class MainWindow(QMainWindow):
             # QPushButton:disabled { background-color: green; }
             # """)
 
-            self.load_settings()
-            self.load_pacenotes()
         else:
-            self.controls_label.setText("Pacenotes are not being updated.")
+            self.set_controls_label_disabled_message()
             self.on_off_button.setText("Off")
             self.timer_thread.disable()
             # self.on_off_button.setStyleSheet("background-color: red;")
     
     def on_timer_timeout(self):
-        # print("on_timer_timeout:", threading.current_thread().name)
-        # self.task_manager.gc_finished()
-        # self.update_pacenotes_info_label()
-        self.clean_up_orphaned_audio(self.pacenotes_data, self.root_path)
-        self.refresh_pacenotes_data()
-        if not aip_client.healthcheck_rate_limited():
-            raise RuntimeError("fuck")
-        self.update_pacenotes_audio()
+        self.set_controls_label_healthcheck_message()
+        # TODO call the healthcheck in a background thread.
+        if not aip_client.get_healthcheck_rate_limited():
+            raise RuntimeError("healthcheck error")
+        self.set_controls_label_enabled_message()
+        self.populate_tree()
+
+        files = self.get_selected_pacenotes_files()
+        self.pacenotes_manager.scan_pacenotes_files(files)
+        filtered_pacenotes = self.get_filtered_pacenotes(files)
+        sorted_pacenotes = self.sorted_pacenotes_for_table(filtered_pacenotes)
+        self.update_table(sorted_pacenotes)
+        self.update_pacenotes_audio(filtered_pacenotes)
+
+        self.pacenotes_manager.clean_up_orphaned_audio()
     
-    def update_pacenotes_audio(self):
+    def get_filtered_pacenotes(self, pacenotes_files_filter):
+        return [d for d in self.pacenotes_manager.db.pacenotes if d.pacenotes_fname in pacenotes_files_filter]
+    
+    def sorted_pacenotes_for_table(self, pacenotes):
+        def sort_fn(pacenote):
+            st = pacenote.status
+            status_n = -1
+            if st == statuses.PN_STATUS_ERROR:
+                 status_n = 0
+            if st == statuses.PN_STATUS_UNKNOWN:
+                status_n = 1
+            elif st == statuses.PN_STATUS_UPDATING:
+                status_n = 2
+            elif st == statuses.PN_STATUS_NEEDS_SYNC:
+                status_n = 3
+            elif st == statuses.PN_STATUS_OK:
+                status_n = 4
+            else:
+                status_n = 5
+
+            return (status_n, -pacenote.updated_at)
+
+        return sorted(pacenotes, key=sort_fn)
+    
+    # If anything is selected in the tree, only include those pacenotes files.
+    def get_selected_pacenotes_files(self):
+        # return ['C:\\Users\\bird\\AppData\\Local\\BeamNG.drive\\0.29\\gameplay\\missions\\jungle_rock_island\\timeTrial\\jri_road_race-procedural\\pacenotes.pacenotes.json']
+        # return ['C:\\Users\\bird\\AppData\\Local\\BeamNG.drive\\0.29\\gameplay\\missions\\jungle_rock_island\\timeTrial\\aip-island-loop\\pacenotes.pacenotes.json']
+        selected_items = self.tree.selectedItems()
+        selected_item_path = None
+
+        search_paths = []
+
+        if len(selected_items) > 1:
+            print(f"tree widget multi-select is not supported yet")
+        elif len(selected_items) == 1:
+            selected_item_path = selected_items[0].full_path
+            search_paths.append(selected_item_path)
+        else:
+            search_paths = self.settings_manager.get_pacenotes_search_paths()
+
+        pacenotes_files = []
+        for search_path in search_paths:
+            if os.path.isfile(search_path):
+                pacenotes_files.append(search_path)
+            else:
+                paths = pathlib.Path(search_path).rglob(pacenotes_file_pattern)
+                for e in paths:
+                    pacenotes_files.append(str(e))
+        
+        return pacenotes_files
+
+
+    def update_pacenotes_audio(self, pacenotes):
         # print("update_pacenotes:", threading.current_thread().name)
 
-        for pn in self.pacenotes_data:
-            # fs_status = pn['filesystem_status']
-            status = pn['status']
-            if status == statuses.PN_STATUS_NEEDS_SYNC:
-                pn['network_status'] = statuses.PN_STATUS_UPDATING
-                pn['status'] = pn['network_status']
-                self.task_manager.submit_pacenote(self.update_pacenote, pn)
-                # print("submitted note")
+        for pn in pacenotes:
+            if pn.status == statuses.PN_STATUS_NEEDS_SYNC:
+                pn.network_status = statuses.PN_STATUS_UPDATING
+                pn.touch()
+                self.task_manager.submit(self.update_pacenote, pn.id)
 
-    def update_pacenote(self, pacenote):
-        print(f"update_pacenote '{pacenote['note_text']}'")
+    def update_pacenote(self, pnid):
+        pacenote = self.pacenotes_manager.db.select(pnid)
+        print(f"update_pacenote '{pacenote.note_text}'")
 
-        response = aip_client.make_request(pacenote)
+        response = aip_client.post_create_pacenotes_audio(pacenote)
 
         if response.status_code == 200:
-            audio_path = pacenote['audio_path']
+            audio_path = pacenote.audio_path
 
             version_path = os.path.dirname(audio_path)
             if not os.path.exists(version_path):
@@ -227,17 +317,18 @@ class MainWindow(QMainWindow):
             with open(audio_path, 'wb') as f:
                 f.write(response.content)
 
-            pacenote['network_status'] = None
-            pacenote['filesystem_status'] = statuses.PN_STATUS_OK
-            pacenote['status'] = pacenote['filesystem_status']
+            pacenote.clear_dirty()
+            pacenote.touch()
+            pacenote.network_status = None
+            pacenote.filesystem_status = statuses.PN_STATUS_OK
 
             print(f"wrote audio file: {audio_path}")
         else:
             print(f"request failed with status code {response.status_code}")
-            pacenote['network_status'] = statuses.PN_STATUS_ERROR
-            pacenote['status'] = pacenote['network_status']
+            pacenote.clear_dirty()
+            pacenote.network_status = statuses.PN_STATUS_ERROR
 
-        res = f"pacenote updated '{pacenote['note_text']}'"
+        res = f"pacenote updated '{pacenote.note_text}'"
         print(res)
 
         self.pacenote_updated.emit(pacenote)
@@ -251,99 +342,18 @@ class MainWindow(QMainWindow):
         print('pacenote updated!!!')
         self.task_manager.gc_finished()
         self.update_pacenotes_info_label()
-        self.refresh_pacenotes_data()
+
+        files = self.get_selected_pacenotes_files()
+        filtered_pacenotes = self.get_filtered_pacenotes(files)
+        sorted_pacenotes = self.sorted_pacenotes_for_table(filtered_pacenotes)
+
+        self.update_table(sorted_pacenotes)
     
-    def load_settings(self):
-        self.settings_manager = SettingsManager()
-        # print(self.settings_manager.settings)
-    
-    def load_pacenotes(self):
-        home_dir = os.environ.get('HOME', os.environ.get('USERPROFILE'))
-
-        ver = '0.29'
-        # ver = 'latest' # TODO doesnt work
-        root_path = os.path.join(home_dir, 'AppData', 'Local', 'BeamNG.drive', ver)
-        self.root_path = pathlib.Path(root_path)
-        self.root_path.resolve()
-
-        # setup the tree widget
-        pacenotes_files = self.populate_tree(self.root_path, '*.pacenotes.json', ver)
-
-        # setup the table widget
-        pacenotes_json = [self.load_pacenotes_file(f) for f in pacenotes_files]
-        self.pacenotes_data = self.massage_pacenotes_for_table(pacenotes_json)
-
-        self.refresh_pacenotes_data()
-
-    def refresh_pacenotes_data(self):
-        self.update_filesystem_statuses(self.pacenotes_data)
-        self.pacenotes_data = self.sort_pacenotes_data(self.pacenotes_data)
-        self.update_table()
-    
-    def clean_up_orphaned_audio(self, pacenotes_data, root_path):
-        pacenote_expected_audio_files = set()
-        for pacenote in pacenotes_data:
-            audio_path = pacenote['audio_path']
-            pacenote_expected_audio_files.add(audio_path)
-
-        ogg_search_path = pathlib.Path(root_path)
-        paths = ogg_search_path.rglob('pacenotes/*/pacenote_*.ogg')
-        found_oggs = set()
-        for ogg in paths:
-            ogg = str(ogg)
-            found_oggs.add(ogg)
-        
-        to_delete = found_oggs - pacenote_expected_audio_files
-
-        for deleteme in to_delete:
-            os.remove(deleteme)
-            print(f"deleted {deleteme}")
-    
-    def sort_pacenotes_data(self, pacenotes_data):
-        def sort_fn(pacenote):
-            st = pacenote['status']
-            if st == statuses.PN_STATUS_ERROR:
-                return 0
-            if st == statuses.PN_STATUS_UNKNOWN:
-                return 1
-            elif st == statuses.PN_STATUS_UPDATING:
-                return 2
-            elif st == statuses.PN_STATUS_NEEDS_SYNC:
-                return 3
-            elif st == statuses.PN_STATUS_OK:
-                return 4
-            else:
-                return 5
-        return sorted(pacenotes_data, key=sort_fn)
-    
-    def get_filesystem_status_for_pacenote(self, pacenote):
-        audio_path = pacenote['audio_path']
-        if os.path.isfile(audio_path):
-            return statuses.PN_STATUS_OK
-        else:
-            return statuses.PN_STATUS_NEEDS_SYNC
-
-    def update_filesystem_statuses(self, data):
-        for pacenote in data:
-            new_fs_status = self.get_filesystem_status_for_pacenote(pacenote)
-            if pacenote["filesystem_status"] == statuses.PN_STATUS_OK and new_fs_status == statuses.PN_STATUS_NEEDS_SYNC:
-                print(f"audio file doesnt exist: {pacenote['audio_path']}")
-            pacenote["filesystem_status"] = new_fs_status
-            nw_status = pacenote["network_status"]
-            if nw_status is not None:
-                pacenote["status"] = nw_status
-            else:
-                pacenote["status"] = pacenote["filesystem_status"]
-
-        return data
-
-    def update_table(self):
-        data = self.pacenotes_data
-        # Clear existing data
+    def update_table(self, data):
         self.table.setRowCount(0)
         
         for i, pacenote in enumerate(data):
-            (status, note, audio, name, version, mission, location) = self.to_table_row(pacenote)
+            (status, updated_at, note, audio, name, version, mission, location) = self.to_table_row(pacenote)
             self.table.insertRow(i)
 
             status_item = QTableWidgetItem(status)
@@ -362,143 +372,80 @@ class MainWindow(QMainWindow):
             status_item.setFont(font)
             status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            self.table.setItem(i, 1, QTableWidgetItem(note))
-            self.table.setItem(i, 2, QTableWidgetItem(audio))
-            self.table.setItem(i, 3, QTableWidgetItem(name))
-            self.table.setItem(i, 4, QTableWidgetItem(version))
-            self.table.setItem(i, 5, QTableWidgetItem(mission))
-            self.table.setItem(i, 6, QTableWidgetItem(location))
+            updated_at = time.time() - updated_at
+            updated_at = int(updated_at)
+            updated_at = f"{updated_at}s ago"
+            item = QTableWidgetItem(updated_at)
+            # item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+            self.table.setItem(i, 1, item)
+
+            self.table.setItem(i, 2, QTableWidgetItem(note))
+            self.table.setItem(i, 3, QTableWidgetItem(audio))
+            self.table.setItem(i, 4, QTableWidgetItem(name))
+            self.table.setItem(i, 5, QTableWidgetItem(version))
+            self.table.setItem(i, 6, QTableWidgetItem(mission))
+            self.table.setItem(i, 7, QTableWidgetItem(location))
 
         # self.table.resizeColumnsToContents()
 
-
-    # also needs to be changed in the private repo, and in the custom lua flowgraph code.
-    def normalize_pacenote_text(self, input):
-        # Convert the input to lower case
-        input = input.lower()
-
-        # Substitute any non-alphanumeric character with a hyphen
-        input = re.sub(r'\W', '-', input)
-
-        # Remove any consecutive hyphens
-        input = re.sub(r'-+', '-', input)
-
-        # Remove any leading or trailing hyphens
-        input = re.sub(r'^-', '', input)
-        input = re.sub(r'-$', '', input)
-
-        return input
-    
-    def get_mission_id_from_path(self, fname):
-        pattern = r"missions\\([^\\]+\\[^\\]+\\[^\\]+)"
-        match = re.search(pattern, fname)
-
-        if match:
-            return match.group(1)
-        else:
-            raise ValueError(f"couldnt extract mission id from: {fname}")
-
-    def get_mission_location_from_path(self, fname):
-        # pattern = r"BeamNG\.drive\\\d\.\d+\\(.*)\\gameplay"
-        pattern = r"BeamNG\.drive\\\d\.\d+\\(?:.*?)gameplay\\missions\\(.+)\\pacenotes.pacenotes.json"
-        match = re.search(pattern, fname)
-        print(f"checking for mission id: {fname}")
-
-        if match:
-            m = match.group(1)
-            print(f"found: {m}")
-            return m
-        else:
-            raise ValueError(f"couldnt extract mission id from: {fname}")
-    
-    def build_pacenotes_audio_file_path(self, pacenotes_json_fname, version_id, pacenote_fname):
-        pacenotes_dir = os.path.dirname(pacenotes_json_fname)
-        ver_str = f'version{version_id}'
-        fname = os.path.join(pacenotes_dir, 'pacenotes', ver_str, pacenote_fname)
-        return fname
-
-    def massage_pacenotes_for_table(self, pacenotes_json):
-        massaged = []
-
-        for fname, single_file_json in pacenotes_json:
-            # print(fname)
-
-            mission_id = self.get_mission_id_from_path(fname)
-            mission_location = self.get_mission_location_from_path(fname)
-
-            for version in single_file_json['versions']:
-                authors = version['authors']
-                desc = version['description']
-                version_id = version['id']
-                version_installed = version['installed']
-                language_code = version['language_code']
-                version_name = version['name']
-                voice = version['voice']
-                voice_name = version['voice_name']
-                pacenotes = version['pacenotes']
-
-                for pacenote in pacenotes:
-                    note_name = pacenote['name']
-                    note_text = pacenote['note']
-                    audio_fname = f'pacenote_{self.normalize_pacenote_text(note_text)}.ogg'
-                    audio_path = self.build_pacenotes_audio_file_path(fname, version_id, audio_fname)
-
-                    data_dict = {}
-                    data_dict['mission_id'] = mission_id
-                    data_dict['mission_location'] = mission_location
-
-                    data_dict['authors'] = authors
-                    data_dict['desc'] = desc
-                    data_dict['version_id'] = version_id
-                    data_dict['version_installed'] = version_installed
-                    data_dict['language_code'] = language_code
-                    data_dict['version_name'] = version_name
-                    data_dict['voice'] = voice
-                    data_dict['voice_name'] = voice_name
-                    data_dict['pacenotes'] = pacenotes
-
-                    data_dict['note_name'] = note_name
-                    data_dict['note_text'] = note_text
-                    data_dict['audio_fname'] = audio_fname
-                    data_dict['audio_path'] = audio_path
-
-                    data_dict['filesystem_status'] = statuses.PN_STATUS_UNKNOWN
-                    data_dict['network_status'] = None
-                    data_dict['status'] = data_dict['filesystem_status']
-
-                    massaged.append(data_dict)
-        
-        return massaged
-    
     def to_table_row(self, pacenote):
-        row_fields = ['status', 'note_text', 'audio_fname', 'note_name', 'version_name', 'mission_id', 'mission_location']
-        row_data = [pacenote[f] for f in row_fields]
+        row_fields = ['status', 'updated_at', 'note_text', 'audio_fname',
+                      'note_name', 'version_name', 'mission_id', 'mission_location']
+        row_data = [pacenote.get_data(f) for f in row_fields]
         return row_data
-
-    def load_pacenotes_file(self, fname):
-        with open(fname) as f:
-            return (fname, json.load(f))
     
-    def populate_tree(self, root_path, pattern, root_item_name):
+    def populate_tree(self):
+        bench = Benchmark()
+        selected_items = self.tree.selectedItems()
+        selected_item_path = None
+
+        if len(selected_items) > 1:
+            print(f"tree widget multi-select is not supported yet")
+        elif len(selected_items) == 1:
+            selected_item_path = selected_items[0].full_path
+        
+        # print(f"tree selected_item_path={selected_item_path}")
+
         self.tree.clear()
-        root_item = PacenotesTreeWidgetItem(self.tree, [root_item_name], root_path)
-        idx = { root_path: root_item }
-        search_path = pathlib.Path(root_path)
-        paths = search_path.rglob(pattern)
-        pacenotes_files = []
-        for e in paths:
-            pacenotes_files.append(str(e))
-            rel_path = e.relative_to(root_path)
-            parts = pathlib.PurePath(rel_path).parts
-            dir_parts = parts[:-1]
-            file_part = parts[-1]
-            node = self.get_nested_node(idx, root_path, dir_parts)
-            file_node = PacenotesTreeWidgetItem(node, [file_part], os.path.join(root_path, rel_path))
+
+        def shorten_root_path(input_string):
+            pattern = r".*\\(BeamNG\.drive)"
+            match = re.search(pattern, input_string)
+            if match:
+                last_component = match.group(1)
+                return re.sub(pattern, last_component, input_string)
+            return input_string
+
+        idx = {}
+
+        for root_path in self.settings_manager.get_pacenotes_search_paths():
+            # print(f"populating tree for {root_path}")
+            root_item_name = shorten_root_path(root_path)
+            root_item = PacenotesTreeWidgetItem(self.tree, [root_item_name], root_path)
+            idx[root_path] = root_item
+            search_path = pathlib.Path(root_path)
+            paths = search_path.rglob(pacenotes_file_pattern)
+            pacenotes_files = []
+            for e in paths:
+                pacenotes_files.append(str(e))
+                rel_path = e.relative_to(root_path)
+                parts = pathlib.PurePath(rel_path).parts
+                dir_parts = parts[:-1]
+                file_part = parts[-1]
+                parent_node = self.get_nested_node(idx, root_path, dir_parts)
+                full_path = os.path.join(root_path, rel_path)
+                file_node = PacenotesTreeWidgetItem(parent_node, [file_part], full_path)
+                idx[full_path] = file_node
 
         self.tree.expandAll()
 
-        return pacenotes_files
-    
+        if selected_item_path is not None:
+            selected_item = idx[selected_item_path]
+            if selected_item is not None:
+                selected_item.setSelected(True)
+
+        # bench.stop('populate_tree')
+  
     def get_nested_node(self, idx, root_path, names):
         node = self.get_node(idx, None, root_path, root_path)
         names_so_far = []

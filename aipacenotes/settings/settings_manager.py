@@ -5,7 +5,7 @@ import win32com.client
 from . import defaults
 
 def expand_windows_symlinks(path):
-    print(f"transform_path for {path}")
+    # print(f"transform_path for {path}")
     shell = win32com.client.Dispatch("WScript.Shell")
     parts = []
     while True:
@@ -16,6 +16,7 @@ def expand_windows_symlinks(path):
             shortcut = shell.CreateShortCut(lnk_path)
             new_part = shortcut.Targetpath
 
+        # print(f"path={path}")
         path, part = os.path.split(path)
         # print(f"{path} {part} -> {new_part}")
 
@@ -25,7 +26,7 @@ def expand_windows_symlinks(path):
             parts.append(part)
 
         # Break loop when path can't be split any further
-        if path == '' or path == '/' or (os.path.splitdrive(path)[1] in ('', '/')):
+        if path == '' or path == '/' or (os.path.splitdrive(path)[1] in ('', '/', '\\')):
             break
 
     parts.append(path)
@@ -58,14 +59,20 @@ replacement_strings = {
 }
 
 class SettingsManager():
-
     default_settings_path = '$HOME/AppData/Local/AIPacenotes/settings.json'
 
     def __init__(self, settings_fname=default_settings_path):
         settings_fname = replace_vars(settings_fname, replacement_strings)
         self.settings_fname = settings_fname
-        self.settings = None
-        self.load()
+        # self.settings = None
+        # self.reload()
+    
+    # def reload(self):
+        # self.settings = None
+        # self.load()
+    
+    def get_pacenotes_search_paths(self):
+        return self.settings['pacenotes_search_paths']
 
     def load(self):
         print(f"loading settings")
@@ -88,3 +95,4 @@ class SettingsManager():
              new_sp.append(updated)
 
         self.settings['pacenotes_search_paths'] = new_sp
+        print(f"settings={self.settings}")

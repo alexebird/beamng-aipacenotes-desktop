@@ -1,1 +1,1 @@
-from .manager import SettingsManager
+from .settings_manager import SettingsManager
