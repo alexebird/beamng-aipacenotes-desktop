@@ -21,13 +21,26 @@ class Database():
         else:
             return None
     
+    def select_with_fname(self, query_pacenotes_fname):
+        result = []
+
+        for pn in self.pacenotes:
+            if pn.pacenotes_fname == query_pacenotes_fname:
+                result.append(pn)
+
+        return result
+    
+    def delete(self, pnid):
+        pn = self.select(pnid)
+        self.pacenotes.remove(pn)
+        del self.unique_index_pn_id[pnid]
+    
     def insert(self, pacenote):
         pnid = pacenote.id
         if pnid in self.unique_index_pn_id:
             raise ValueError(f'insert: pacenote exists with id={pnid}')
         self.pacenotes.append(pacenote)
         self.unique_index_pn_id[pnid] = pacenote
-        # pacenote.set_dirty()
         pacenote.touch()
         return pacenote
     
@@ -50,15 +63,15 @@ class Database():
                 old_val = getattr(existing, attr)
                 new_val = getattr(pacenote, attr)
                 if new_val != old_val:
-                    setattr(pacenote, attr, new_val)
-                    print(f'updated field {attr} from {old_val} to {new_val}')
+                    setattr(existing, attr, new_val)
+                    print(f"updated field {attr} from '{old_val}' to '{new_val}'")
                     update_made = True
             return update_made
 
         if update_attrs(Pacenote.static_attrs):
             existing.touch()
             existing.set_dirty()
-        # update_attrs(Pacenote.dynamic_attrs)
+
         return existing
 
 class PacenotesManager():
@@ -66,11 +79,21 @@ class PacenotesManager():
         self.settings_manager = settings_manager
         self.pacenotes_network_cache = {}
         self.db = Database()
+    
+    def delete_stale_pacenotes(self, fname, scanned_pacenotes):
+        pnids = set([pn.id for pn in scanned_pacenotes])
 
-    # db changes:
-    # - delete pacenotes that dont exist in the scan, that arent pending network activity
-    # - upsert all scanned pacenotes
-    # - dont change network status
+        existing_db_notes = self.db.select_with_fname(fname)
+    
+        i = 0
+        while i < len(existing_db_notes):
+            existing = existing_db_notes[i]
+
+            if existing.id not in pnids:
+                self.db.delete(existing.id)
+
+            i += 1
+
     def reconcile_fs_scan(self, scanned_pacenotes):
         for scan_pacenote in scanned_pacenotes:
             pacenote = self.db.upsert(scan_pacenote)
@@ -79,16 +102,10 @@ class PacenotesManager():
 
             pacenote.refresh_filesystem_status()
 
-            # if pacenote.filesystem_status == statuses.PN_STATUS_OK and new_fs_status == statuses.PN_STATUS_NEEDS_SYNC:
-
-            # pacenote.filesystem_status = new_fs_status
-
-            # nw_status = pacenote.network_status
-            # if nw_status is not None:
-            #     pacenote.status = nw_status
-            # else:
-            #     pacenote.status = pacenote.filesystem_status
-
+    # db changes:
+    # - delete pacenotes that dont exist in the scan, that arent pending network activity
+    # - upsert all scanned pacenotes
+    # - dont change network status
     def scan_pacenotes_files(self, pacenotes_files):
         scan_data = []
 
@@ -101,6 +118,9 @@ class PacenotesManager():
             scan_data.append(rv)
 
         scanned_objs = self.pacenotes_json_to_obj(scan_data)
+
+        for fname in pacenotes_files:
+            self.delete_stale_pacenotes(fname, scanned_objs)
         self.reconcile_fs_scan(scanned_objs)
 
     def clean_up_orphaned_audio(self):
@@ -138,7 +158,7 @@ class PacenotesManager():
             for version in single_file_json['versions']:
                 authors = version['authors']
                 desc = version['description']
-                version_id = version['id']
+                version_id = f"version{version['id']}"
                 version_installed = version['installed']
                 language_code = version['language_code']
                 version_name = version['name']
@@ -166,7 +186,6 @@ class PacenotesManager():
                     data_dict['version_name'] = version_name
                     data_dict['voice'] = voice
                     data_dict['voice_name'] = voice_name
-                    data_dict['pacenotes'] = pacenotes
 
                     data_dict['note_name'] = note_name
                     data_dict['note_text'] = note_text
@@ -186,26 +205,39 @@ class PacenotesManager():
 
     def build_pacenotes_audio_file_path(self, pacenotes_json_fname, version_id, pacenote_fname):
         pacenotes_dir = os.path.dirname(pacenotes_json_fname)
-        ver_str = f'version{version_id}'
-        fname = os.path.join(pacenotes_dir, 'pacenotes', ver_str, pacenote_fname)
+        fname = os.path.join(pacenotes_dir, 'pacenotes', version_id, pacenote_fname)
         return fname
     
     # also needs to be changed in the private repo, and in the custom lua flowgraph code.
-    def normalize_pacenote_text(self, input):
-        # Convert the input to lower case
-        input = input.lower()
+    # def normalize_pacenote_text(self, input):
+    #     # Convert the input to lower case
+    #     input = input.lower()
 
-        # Substitute any non-alphanumeric character with a hyphen
-        input = re.sub(r'\W', '-', input)
+    #     # special char subs
+    #     input = input.replace(',', 'C')
+    #     input = input.replace('?', 'Q')
+    #     input = input.replace('.', 'P')
+    #     input = input.replace(';', 'S')
+    #     input = input.replace('!', 'E')
 
-        # Remove any consecutive hyphens
-        input = re.sub(r'-+', '-', input)
+    #     # Substitute any non-alphanumeric character with a hyphen
+    #     input = re.sub(r'\W', '-', input)
 
-        # Remove any leading or trailing hyphens
-        input = re.sub(r'^-', '', input)
-        input = re.sub(r'-$', '', input)
 
-        return input
+    #     # Remove any consecutive hyphens
+    #     input = re.sub(r'-+', '-', input)
+
+    #     # Remove any leading or trailing hyphens
+    #     input = re.sub(r'^-', '', input)
+    #     input = re.sub(r'-$', '', input)
+
+    #     return input
+    
+    def normalize_pacenote_text(self, s):
+        hash_value = 0
+        for char in s:
+            hash_value = (hash_value * 33 + ord(char)) % 2_147_483_647
+        return hash_value
     
     def get_mission_id_from_path(self, fname):
         pattern = r"missions\\([^\\]+\\[^\\]+\\[^\\]+)"

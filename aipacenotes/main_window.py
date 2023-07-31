@@ -58,7 +58,7 @@ class Benchmark:
 
 class MainWindow(QMainWindow):
     
-    pacenote_updated = pyqtSignal(Pacenote)
+    pacenote_updated = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -121,8 +121,8 @@ class MainWindow(QMainWindow):
         self.pacenotes_info_label = QLabel("This is a label\nFoobar", self.right_pane)
         self.right_layout.addWidget(self.pacenotes_info_label)
 
-        self.table = QTableWidget(0, 8)  
-        self.table.setHorizontalHeaderLabels(['Status', 'Updated At', 'Pacenote', 'Audio File', 'Pacenote Name', 'Pacenotes Version Name', 'Mission ID', 'Location']) 
+        self.table = QTableWidget(0, 10)  
+        self.table.setHorizontalHeaderLabels(['Status', 'Updated At', 'Pacenote', 'Voice', 'Audio File', 'Pacenote Name', 'Version Name', 'Version ID', 'Mission ID', 'Location']) 
         # Set table header to stretch to the size of the window
 
         header = self.table.horizontalHeader()       
@@ -220,6 +220,7 @@ class MainWindow(QMainWindow):
             # self.on_off_button.setStyleSheet("background-color: red;")
     
     def on_timer_timeout(self):
+        # print(f"-- on_timer_timeout ------------------------------")
         self.set_controls_label_healthcheck_message()
         # TODO call the healthcheck in a background thread.
         if not aip_client.get_healthcheck_rate_limited():
@@ -244,7 +245,7 @@ class MainWindow(QMainWindow):
             st = pacenote.status
             status_n = -1
             if st == statuses.PN_STATUS_ERROR:
-                 status_n = 0
+                status_n = 0
             if st == statuses.PN_STATUS_UNKNOWN:
                 status_n = 1
             elif st == statuses.PN_STATUS_UPDATING:
@@ -290,13 +291,18 @@ class MainWindow(QMainWindow):
 
 
     def update_pacenotes_audio(self, pacenotes):
-        # print("update_pacenotes:", threading.current_thread().name)
+        def submit_for_update(pn):
+            pn.network_status = statuses.PN_STATUS_UPDATING
+            pn.touch()
+            self.task_manager.submit(self.update_pacenote, pn.id)
 
         for pn in pacenotes:
             if pn.status == statuses.PN_STATUS_NEEDS_SYNC:
-                pn.network_status = statuses.PN_STATUS_UPDATING
-                pn.touch()
-                self.task_manager.submit(self.update_pacenote, pn.id)
+                print(f"submitting for update: pacenote '{pn.note_text}' is in NEEDS_SYNC")
+                submit_for_update(pn)
+            elif pn.dirty:
+                print(f"submitting for update: pacenote '{pn.note_text}' is dirty")
+                submit_for_update(pn)
 
     def update_pacenote(self, pnid):
         pacenote = self.pacenotes_manager.db.select(pnid)
@@ -321,23 +327,23 @@ class MainWindow(QMainWindow):
             pacenote.touch()
             pacenote.network_status = None
             pacenote.filesystem_status = statuses.PN_STATUS_OK
-
-            print(f"wrote audio file: {audio_path}")
+            print(f"wrote audio file for '{pacenote.note_text}': {audio_path}")
         else:
-            print(f"request failed with status code {response.status_code}")
             pacenote.clear_dirty()
+            pacenote.touch()
             pacenote.network_status = statuses.PN_STATUS_ERROR
+            print(f"request failed with status code {response.status_code}")
 
         res = f"pacenote updated '{pacenote.note_text}'"
         print(res)
 
-        self.pacenote_updated.emit(pacenote)
+        self.pacenote_updated.emit()
         return res
 
     def on_tree_item_clicked(self, item, column):
         print(f'Item clicked: {item.full_path}')
     
-    def on_pacenote_updated(self, pacenote):
+    def on_pacenote_updated(self):
         # print("on_pacenote_updated:", threading.current_thread().name)
         print('pacenote updated!!!')
         self.task_manager.gc_finished()
@@ -346,14 +352,13 @@ class MainWindow(QMainWindow):
         files = self.get_selected_pacenotes_files()
         filtered_pacenotes = self.get_filtered_pacenotes(files)
         sorted_pacenotes = self.sorted_pacenotes_for_table(filtered_pacenotes)
-
         self.update_table(sorted_pacenotes)
     
     def update_table(self, data):
         self.table.setRowCount(0)
         
         for i, pacenote in enumerate(data):
-            (status, updated_at, note, audio, name, version, mission, location) = self.to_table_row(pacenote)
+            (status, updated_at, note, voice, audio, name, version, versionId, mission, location) = self.to_table_row(pacenote)
             self.table.insertRow(i)
 
             status_item = QTableWidgetItem(status)
@@ -380,17 +385,20 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 1, item)
 
             self.table.setItem(i, 2, QTableWidgetItem(note))
-            self.table.setItem(i, 3, QTableWidgetItem(audio))
-            self.table.setItem(i, 4, QTableWidgetItem(name))
-            self.table.setItem(i, 5, QTableWidgetItem(version))
-            self.table.setItem(i, 6, QTableWidgetItem(mission))
-            self.table.setItem(i, 7, QTableWidgetItem(location))
+            self.table.setItem(i, 3, QTableWidgetItem(voice))
+            self.table.setItem(i, 4, QTableWidgetItem(audio))
+            self.table.setItem(i, 5, QTableWidgetItem(name))
+            self.table.setItem(i, 6, QTableWidgetItem(version))
+            self.table.setItem(i, 7, QTableWidgetItem(versionId))
+            self.table.setItem(i, 8, QTableWidgetItem(mission))
+            self.table.setItem(i, 9, QTableWidgetItem(location))
 
         # self.table.resizeColumnsToContents()
 
     def to_table_row(self, pacenote):
-        row_fields = ['status', 'updated_at', 'note_text', 'audio_fname',
-                      'note_name', 'version_name', 'mission_id', 'mission_location']
+        row_fields = ['status', 'updated_at', 'note_text', 'voice', 'audio_fname',
+                      'note_name', 'version_name', 'version_id',
+                      'mission_id', 'mission_location']
         row_data = [pacenote.get_data(f) for f in row_fields]
         return row_data
     
