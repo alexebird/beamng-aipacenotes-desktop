@@ -29,18 +29,18 @@ def post_create_pacenotes_audio(pacenote):
 
 def get_healthcheck():
     global last_healthcheck_ts
-    print(f"client: GET {healthcheck_url}")
-
+    log_str = f"aip-client: GET {healthcheck_url}"
     last_healthcheck_ts = time.time()
-
     response = requests.get(healthcheck_url, timeout=120)
+    print(f"{log_str} -> {response.status_code}")
+
     if response.status_code == 200:
         return True
     else:
         return False
 
-def get_healthcheck_rate_limited():
-    if time.time() - last_healthcheck_ts > 60.0:
+def get_healthcheck_rate_limited(rate_limit=50.0):
+    if time.time() - last_healthcheck_ts > rate_limit:
         return get_healthcheck()
     else:
         return True

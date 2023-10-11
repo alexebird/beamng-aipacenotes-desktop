@@ -60,18 +60,29 @@ replacement_strings = {
 
 class SettingsManager():
     default_settings_path = '$HOME/AppData/Local/AIPacenotes/settings.json'
+    default_voices_path_user = '$HOME/AppData/Local/BeamNG.drive/latest/settings/aipacenotes/voices.json'
+    default_voices_path_mod = '$HOME/AppData/Local/BeamNG.drive/latest/mods/unpacked/beamng-aipacenotes-mod/settings/aipacenotes/voices.json'
 
     def __init__(self, settings_fname=default_settings_path):
         settings_fname = replace_vars(settings_fname, replacement_strings)
         self.settings_fname = settings_fname
-        # self.settings = None
-        # self.reload()
+        self.settings = None
+
+        # self.voices_fname = self.detect_voices_fname()
+        self.voices = None
     
-    # def reload(self):
-        # self.settings = None
-        # self.load()
+    def detect_voices_fname(self):
+        voices_fname_user = replace_vars(self.default_voices_path_user, replacement_strings)
+        voices_fname_user = expand_windows_symlinks(voices_fname_user)
+
+        if os.path.isfile(voices_fname_user):
+            return voices_fname_user
+        else:
+            voices_fname_mod = replace_vars(self.default_voices_path_mod, replacement_strings)
+            voices_fname_mod = expand_windows_symlinks(voices_fname_mod)
+            return voices_fname_mod
     
-    def get_pacenotes_search_paths(self):
+    def get_search_paths(self):
         return self.settings['pacenotes_search_paths']
 
     def load(self):
@@ -96,3 +107,15 @@ class SettingsManager():
 
         self.settings['pacenotes_search_paths'] = new_sp
         print(f"settings={self.settings}")
+
+        self.load_voices()
+
+    def load_voices(self):
+        fname = self.detect_voices_fname()
+        if os.path.isfile(fname):
+            with open(fname, 'r') as file:
+                self.voices = json.load(file)
+        else:
+            print(f"no voice file detected at {fname}")
+                
+        print(f"voices={self.voices}")

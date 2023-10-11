@@ -2,6 +2,8 @@ import pathlib
 import os
 import re
 import time
+import fnmatch
+import itertools
 
 from PyQt6.QtCore import (
     Qt,
@@ -31,6 +33,7 @@ from PyQt6.QtWidgets import (
 from aipacenotes.tab_pacenotes import (
     ContextMenuTreeWidget,
     TimerThread,
+    HealthcheckThread,
     TaskManager,
     PacenotesManager,
     PacenotesTreeWidgetItem,
@@ -46,6 +49,7 @@ from aipacenotes.settings import SettingsManager
 import time
 
 pacenotes_file_pattern = '*.pacenotes.json'
+rally_file_pattern = '*.rally.json'
 
 class Benchmark:
     def __init__(self):
@@ -166,6 +170,13 @@ class MainWindow(QMainWindow):
         # self.timer_thread.timeout.connect(self.on_timer_timeout)
         # self.timer_thread.start()
 
+        self.healthcheck_thread = HealthcheckThread(60)
+        self.healthcheck_thread.healthcheck_started.connect(self.on_healthcheck_started)
+        self.healthcheck_thread.healthcheck_passed.connect(self.on_healthcheck_passed)
+        self.healthcheck_thread.healthcheck_failed.connect(self.on_healthcheck_failed)
+        self.healthcheck_thread.start()
+        self.set_controls_label_startup_healthcheck_message()
+
         self.timer_thread = TimerThread(self.timeout_sec)
         self.timer_thread.timeout.connect(self.on_timer_timeout)
         self.timer_thread.start()
@@ -175,10 +186,12 @@ class MainWindow(QMainWindow):
 
         # Managers live for the lifetime of the program so they can detect changes across pacenote file scans.
         self.settings_manager = SettingsManager()
+        self.settings_manager.load()
         self.pacenotes_manager = PacenotesManager(self.settings_manager)
 
         self.pacenote_updated.connect(self.on_pacenote_updated)
 
+        self.is_toggled = True
         self.on_toggle(True)
     
     def update_pacenotes_info_label(self):
@@ -192,11 +205,15 @@ class MainWindow(QMainWindow):
     def set_controls_label_disabled_message(self):
         self.controls_label.setText("Pacenotes are not being updated.")
     
-    def set_controls_label_healthcheck_message(self):
-        self.controls_label.setText("Connecting to pacenotes server...")
+    def set_controls_label_hc_failed_message(self):
+        self.controls_label.setText("Healthcheck failed. Disabled auto-update.")
+    
+    def set_controls_label_startup_healthcheck_message(self):
+        self.controls_label.setText("Connecting to pacenotes server. May take about 10 seconds if the server has to boot up.")
 
     def on_toggle(self, checked):
         if checked:
+            self.is_toggled = True
             self.set_controls_label_enabled_message()
             self.on_off_button.setText("On")
 
@@ -204,7 +221,7 @@ class MainWindow(QMainWindow):
             self.settings_manager.load()
 
             self.on_timer_timeout()
-            self.timer_thread.enable()
+            # self.timer_thread.enable()
 
             # self.on_off_button.setStyleSheet("""
             # QPushButton { background-color: green; }
@@ -214,31 +231,53 @@ class MainWindow(QMainWindow):
             # """)
 
         else:
+            self.is_toggled = True
             self.set_controls_label_disabled_message()
             self.on_off_button.setText("Off")
-            self.timer_thread.disable()
+            # self.timer_thread.disable()
             # self.on_off_button.setStyleSheet("background-color: red;")
     
     def on_timer_timeout(self):
         # print(f"-- on_timer_timeout ------------------------------")
-        self.set_controls_label_healthcheck_message()
         # TODO call the healthcheck in a background thread.
-        if not aip_client.get_healthcheck_rate_limited():
-            raise RuntimeError("healthcheck error")
-        self.set_controls_label_enabled_message()
+        # if not aip_client.get_healthcheck_rate_limited():
+            # raise RuntimeError("healthcheck error")
+        # self.set_controls_label_enabled_message()
         self.populate_tree()
 
-        files = self.get_selected_pacenotes_files()
-        self.pacenotes_manager.scan_pacenotes_files(files)
+        files, rally_files = self.get_selected_pacenotes_files()
+        self.pacenotes_manager.scan_pacenotes_files(files, rally_files)
+        files += rally_files
+
         filtered_pacenotes = self.get_filtered_pacenotes(files)
+        # filtered_rally = self.get_filtered_pacenotes(rally_files)
+
         sorted_pacenotes = self.sorted_pacenotes_for_table(filtered_pacenotes)
+        # sorted_pacenotes = self.sorted_pacenotes_for_table(filtered_pacenotes)
+
         self.update_table(sorted_pacenotes)
-        self.update_pacenotes_audio(filtered_pacenotes)
+        if self.is_toggled:
+            self.update_pacenotes_audio(filtered_pacenotes)
 
         self.pacenotes_manager.clean_up_orphaned_audio()
+
+    def on_healthcheck_started(self):
+        # print('healthcheck_started')
+        pass
+
+    def on_healthcheck_passed(self):
+        print('healthcheck_passed')
+
+    def on_healthcheck_failed(self):
+        print('healthcheck_failed')
+        self.set_controls_label_startup_healthcheck_message()
+        self.on_off_button.setChecked(False)
     
     def get_filtered_pacenotes(self, pacenotes_files_filter):
         return [d for d in self.pacenotes_manager.db.pacenotes if d.pacenotes_fname in pacenotes_files_filter]
+
+    # def get_filtered_rally(self, rally_files_filter):
+    #     return [d for d in self.pacenotes_manager.db.pacenotes if d.pacenotes_fname in rally_files_filter]
     
     def sorted_pacenotes_for_table(self, pacenotes):
         def sort_fn(pacenote):
@@ -276,18 +315,26 @@ class MainWindow(QMainWindow):
             selected_item_path = selected_items[0].full_path
             search_paths.append(selected_item_path)
         else:
-            search_paths = self.settings_manager.get_pacenotes_search_paths()
+            search_paths = self.settings_manager.get_search_paths()
 
         pacenotes_files = []
+        rally_files = []
         for search_path in search_paths:
             if os.path.isfile(search_path):
-                pacenotes_files.append(search_path)
+                if fnmatch.fnmatch(search_path, pacenotes_file_pattern):
+                    pacenotes_files.append(search_path)
+                elif fnmatch.fnmatch(search_path, rally_file_pattern):
+                    rally_files.append(search_path)
             else:
                 paths = pathlib.Path(search_path).rglob(pacenotes_file_pattern)
                 for e in paths:
                     pacenotes_files.append(str(e))
+
+                paths = pathlib.Path(search_path).rglob(rally_file_pattern)
+                for e in paths:
+                    rally_files.append(str(e))
         
-        return pacenotes_files
+        return pacenotes_files, rally_files
 
 
     def update_pacenotes_audio(self, pacenotes):
@@ -349,9 +396,13 @@ class MainWindow(QMainWindow):
         self.task_manager.gc_finished()
         self.update_pacenotes_info_label()
 
-        files = self.get_selected_pacenotes_files()
-        filtered_pacenotes = self.get_filtered_pacenotes(files)
+        pacenotes_files, rally_files = self.get_selected_pacenotes_files()
+
+        filtered_pacenotes = self.get_filtered_pacenotes(pacenotes_files)
         sorted_pacenotes = self.sorted_pacenotes_for_table(filtered_pacenotes)
+
+        # filtered_rally = self.get_filtered_rally(files)
+
         self.update_table(sorted_pacenotes)
     
     def update_table(self, data):
@@ -426,16 +477,20 @@ class MainWindow(QMainWindow):
 
         idx = {}
 
-        for root_path in self.settings_manager.get_pacenotes_search_paths():
+        for root_path in self.settings_manager.get_search_paths():
             # print(f"populating tree for {root_path}")
             root_item_name = shorten_root_path(root_path)
             root_item = PacenotesTreeWidgetItem(self.tree, [root_item_name], root_path)
             idx[root_path] = root_item
             search_path = pathlib.Path(root_path)
             paths = search_path.rglob(pacenotes_file_pattern)
-            pacenotes_files = []
+            rally_paths = search_path.rglob(rally_file_pattern)
+            paths = itertools.chain(paths, rally_paths)
+            # pacenotes_files = []
+            # rally_files = []
             for e in paths:
-                pacenotes_files.append(str(e))
+                # print(e)
+                # pacenotes_files.append(str(e))
                 rel_path = e.relative_to(root_path)
                 parts = pathlib.PurePath(rel_path).parts
                 dir_parts = parts[:-1]

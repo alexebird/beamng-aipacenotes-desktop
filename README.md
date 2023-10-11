@@ -1,6 +1,25 @@
 AI Pacenotes Desktop App
 ===
 
+USAGE
+---
+
+1. open a windows command prompt terminal
+2. cd to the repo
+3. activate virtualenv. run:
+
+    ```
+    call C:\Users\bird\.virtualenvs\aipacenotes\Scripts\activate.bat
+    ```
+4. run app:
+
+    ```
+    python app.py
+    ```
+
+PACKAGING
+---
+
 This windows GUI app watches your BeamNG.drive user folder for pacenotes.json files, and creates audio files from pacenote text.
 
 Used by the [AI Pacenotes](https://www.beamng.com/resources/a-i-rally-pacenotes.27352/) mod.
