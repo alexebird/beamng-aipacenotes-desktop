@@ -22,8 +22,10 @@ def start_app():
     basedir = os.path.dirname(__file__)
     app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'icons', 'aipacenotes.ico')))
     w = MainWindow()
-    app.aboutToQuit.connect(w.timer_thread.stop)
-    app.aboutToQuit.connect(w.task_manager.shutdown)
+    for stoppable in w.things_to_stop():
+        app.aboutToQuit.connect(stoppable)
+    # app.aboutToQuit.connect(w.timer_thread.stop)
+    # app.aboutToQuit.connect(w.task_manager.shutdown)
     w.showMaximized()
     w.show()
     app.exec()

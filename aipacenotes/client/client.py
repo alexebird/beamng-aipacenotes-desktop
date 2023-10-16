@@ -6,9 +6,11 @@ from urllib.parse import urljoin
 
 # TODO should be in settings.json
 base_url = "https://pacenotes-concurrent-mo5q6vt2ea-uw.a.run.app"
+# base_url = "http://localhost:5000"
 
 create_pacenotes_audio_url = urljoin(base_url, 'pacenotes/audio/create')
 healthcheck_url = urljoin(base_url, 'health')
+transcribe_url = urljoin(base_url, 'transcribe')
 
 last_healthcheck_ts = 0.0
 
@@ -44,3 +46,24 @@ def get_healthcheck_rate_limited(rate_limit=50.0):
         return get_healthcheck()
     else:
         return True
+
+def post_transcribe(fname):
+    # data = {
+    #     "note_text": pacenote.note_text,
+    #     "voice_name": pacenote.voice_name,
+    #     "language_code": pacenote.language_code,
+    # }
+
+    # headers = {
+    #     "Content-Type": "application/json"
+    # }
+
+    with open(fname, 'rb') as f:
+        files = {'audio': f}
+        response = requests.post(transcribe_url, files=files)
+        # response = requests.post(create_pacenotes_audio_url, data=json.dumps(data), headers=headers)
+        # if response.status_code == 200:
+        try:
+            return response.json()
+        except requests.exceptions.JSONDecodeError:
+            return None

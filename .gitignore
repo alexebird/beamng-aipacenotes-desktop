@@ -3,3 +3,4 @@ dist
 out.txt
 __pycache__
 *.swp
+*.wav
