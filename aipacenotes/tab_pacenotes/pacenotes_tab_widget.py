@@ -68,7 +68,7 @@ class PacenotesTabWidget(QWidget):
     
     pacenote_updated = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, settings_manager):
         super().__init__()
 
         self.controls_pane = QWidget()
@@ -162,9 +162,7 @@ class PacenotesTabWidget(QWidget):
         self.task_manager = TaskManager(10)
         self.update_pacenotes_info_label()
 
-        # Managers live for the lifetime of the program so they can detect changes across pacenote file scans.
-        self.settings_manager = SettingsManager()
-        self.settings_manager.load()
+        self.settings_manager = settings_manager
         self.pacenotes_manager = PacenotesManager(self.settings_manager)
 
         self.pacenote_updated.connect(self.on_pacenote_updated)

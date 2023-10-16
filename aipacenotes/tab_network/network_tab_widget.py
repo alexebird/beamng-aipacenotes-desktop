@@ -52,8 +52,10 @@ class NetworkTabWidget(QWidget):
     
     # hello_world = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, settings_manager):
         super().__init__()
+
+        self.settings_manager = settings_manager
 
         self.server_thread = ServerThread()
         self.server_thread.start()

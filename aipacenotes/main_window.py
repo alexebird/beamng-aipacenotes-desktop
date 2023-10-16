@@ -69,9 +69,13 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         self.file_menu.addAction(exit_action)
 
-        self.pacenotes_tab = PacenotesTabWidget()
-        self.network_tab = NetworkTabWidget()
-        self.transcribe_tab = TranscribeTabWidget(self.network_tab)
+        # Managers live for the lifetime of the program so they can detect changes across pacenote file scans.
+        self.settings_manager = SettingsManager()
+        self.settings_manager.load()
+
+        self.pacenotes_tab = PacenotesTabWidget(self.settings_manager)
+        self.network_tab = NetworkTabWidget(self.settings_manager)
+        self.transcribe_tab = TranscribeTabWidget(self.settings_manager, self.network_tab)
 
         self.tab_widget = QTabWidget()
         self.tab_widget.addTab(self.pacenotes_tab, "Pacenotes")

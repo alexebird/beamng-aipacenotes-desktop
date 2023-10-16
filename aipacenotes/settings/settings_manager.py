@@ -84,6 +84,12 @@ class SettingsManager():
     
     def get_search_paths(self):
         return self.settings['pacenotes_search_paths']
+    
+    def get_transcription_txt(self):
+        val = self.settings['transcription_txt']
+        updated = replace_vars(val, replacement_strings)
+        updated = expand_windows_symlinks(updated)
+        return updated
 
     def load(self):
         print(f"loading settings")

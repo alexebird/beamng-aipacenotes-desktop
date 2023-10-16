@@ -42,16 +42,17 @@ class TranscribeTabWidget(QWidget):
     
     # hello_world = pyqtSignal()
 
-    def __init__(self, network_tab):
+    def __init__(self, settings_manager, network_tab):
         super().__init__()
 
+        self.settings_manager = settings_manager
         self.network_tab = network_tab
 
         self.network_tab.on_endpoint_recording_start.connect(self.on_endpoint_recording_start)
         self.network_tab.on_endpoint_recording_stop.connect(self.on_endpoint_recording_stop)
         self.network_tab.on_endpoint_recording_cut.connect(self.on_endpoint_recording_cut)
 
-        self.thread = None
+        self.recording_thread = None
 
         layout = QVBoxLayout()
 
@@ -91,17 +92,17 @@ class TranscribeTabWidget(QWidget):
         self.setLayout(layout)
 
     def start_recording(self):
-        if self.thread is None:
-            self.thread = RecordingThread()
-            self.thread.update_transcription.connect(self.update_transcription)
-            self.thread.update_status.connect(self.update_status)
-            self.thread.start()
+        if self.recording_thread is None:
+            self.recording_thread = RecordingThread(self.settings_manager.get_transcription_txt())
+            self.recording_thread.update_transcription.connect(self.update_transcription)
+            self.recording_thread.update_status.connect(self.update_status)
+            self.recording_thread.start()
 
     def stop_recording(self):
-        if self.thread:
-            self.thread.stop()
-            self.thread.wait()
-            self.thread = None
+        if self.recording_thread:
+            self.recording_thread.stop()
+            self.recording_thread.wait()
+            self.recording_thread = None
 
     def cut_recording(self):
         self.stop_recording()
