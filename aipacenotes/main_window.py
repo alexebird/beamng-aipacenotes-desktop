@@ -76,15 +76,20 @@ class MainWindow(QMainWindow):
         self.pacenotes_tab = PacenotesTabWidget(self.settings_manager)
         self.network_tab = NetworkTabWidget(self.settings_manager)
         self.transcribe_tab = TranscribeTabWidget(self.settings_manager, self.network_tab)
+        # self.transcribe_tab.recording_thread.update_transcription.connect(self.network_tab.server_thread.set_latest_transcript)
+        # self.transcribe_tab.update_transcription.connect(self.network_tab.server_thread.set_latest_transcript)
 
         self.tab_widget = QTabWidget()
         self.tab_widget.addTab(self.pacenotes_tab, "Pacenotes")
         self.tab_widget.addTab(self.network_tab, "Network")
-        self.tab_widget.addTab(self.transcribe_tab, "Transcriber")
+        i = self.tab_widget.addTab(self.transcribe_tab, "Voice")
         self.setCentralWidget(self.tab_widget)
+        # self.tab_widget.setCurrentIndex(i)
+        self.tab_widget.setCurrentWidget(self.transcribe_tab)
     
     def things_to_stop(self):
         return [
             self.pacenotes_tab.timer_thread.stop,
             self.pacenotes_tab.task_manager.shutdown, 
+            self.transcribe_tab.recording_thread.stop,
         ]

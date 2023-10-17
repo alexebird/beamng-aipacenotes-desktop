@@ -11,25 +11,34 @@ from aipacenotes.server import Server
 
 class ServerThread(QThread):
 
-    on_recording_start = pyqtSignal()
-    on_recording_stop = pyqtSignal()
-    on_recording_cut = pyqtSignal()
+    on_recording_start = pyqtSignal(dict)
+    on_recording_stop = pyqtSignal(dict)
+    on_recording_cut = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
+
+        self.latest_transcript_text = ""
 
     def run(self):
         server = Server(self)
         server.run(debug=True)
     
-    def _on_recording_start(self):
+    def _on_recording_start(self, vehicle_pos):
         print("SeverThread._on_recording_start")
-        self.on_recording_start.emit()
+        self.on_recording_start.emit(vehicle_pos)
 
-    def _on_recording_stop(self):
+    def _on_recording_stop(self, vehicle_pos):
         print("SeverThread._on_recording_stop")
-        self.on_recording_stop.emit()
+        self.on_recording_stop.emit(vehicle_pos)
  
-    def _on_recording_cut(self):
+    def _on_recording_cut(self, vehicle_pos):
         print("SeverThread._on_recording_cut")
-        self.on_recording_cut.emit()
+        self.on_recording_cut.emit(vehicle_pos)
+ 
+    def _on_get_transcript(self, id):
+        print("SeverThread._on_get_transcript")
+        return self.latest_transcript_text
+    
+    def set_latest_transcript(self, txt):
+        self.latest_transcript_text = txt

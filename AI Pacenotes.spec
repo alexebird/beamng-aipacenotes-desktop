@@ -1,8 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 block_cipher = None
-
 
 a = Analysis(
     ['app.py'],
@@ -28,14 +26,14 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='AI Pacenotes',
+    name='AI-Pacenotes',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,
     icon='icons/aipacenotes.ico',
     disable_windowed_traceback=False,
     argv_emulation=False,

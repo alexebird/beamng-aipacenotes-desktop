@@ -5,3 +5,5 @@ flask==3.0.0
 # scipy
 # librosa
 audiomentations
+sounddevice
+soundfile

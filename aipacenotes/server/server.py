@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 class Server:
     def __init__(self, callback_obj, port=27872):
@@ -12,20 +12,28 @@ class Server:
         def test_endpoint():
             return jsonify({"hello": "world"})
 
-        @self.app.route('/recordings/actions/start')
+        @self.app.route('/recordings/actions/start', methods=['POST'])
         def recording_actions_start():
-            self.callback_obj._on_recording_start()
+            vehicle_pos = request.json
+            self.callback_obj._on_recording_start(vehicle_pos)
             return jsonify({"msg": "recording was started"})
 
-        @self.app.route('/recordings/actions/stop')
+        @self.app.route('/recordings/actions/stop', methods=['POST'])
         def recording_actions_stop():
-            self.callback_obj._on_recording_stop()
+            vehicle_pos = request.json
+            self.callback_obj._on_recording_stop(vehicle_pos)
             return jsonify({"msg": "recording was stopped"})
 
-        @self.app.route('/recordings/actions/cut')
+        @self.app.route('/recordings/actions/cut', methods=['POST'])
         def recording_actions_cut():
-            self.callback_obj._on_recording_cut()
+            vehicle_pos = request.json
+            self.callback_obj._on_recording_cut(vehicle_pos)
             return jsonify({"msg": "recording was cut"})
+
+        @self.app.route('/transcript/<id>')
+        def get_transcript(id):
+            transcript_text = self.callback_obj._on_get_transcript(id)
+            return jsonify({"msg": f"got transcript with id={id}", "transcript": transcript_text})
 
     def run(self, debug=True):
         self.app.run(port=self.port, debug=debug, use_reloader=False)

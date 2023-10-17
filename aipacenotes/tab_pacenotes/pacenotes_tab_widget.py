@@ -242,7 +242,8 @@ class PacenotesTabWidget(QWidget):
         pass
 
     def on_healthcheck_passed(self):
-        print('healthcheck_passed')
+        # print('healthcheck_passed')
+        pass
 
     def on_healthcheck_failed(self):
         print('healthcheck_failed')

@@ -4,6 +4,15 @@ import win32com.client
 
 from . import defaults
 
+def home_dir():
+    hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
+    hom = hom.replace('\\', '/')
+    return hom
+
+replacement_strings = {
+    'HOME': home_dir,
+}
+
 def expand_windows_symlinks(path):
     # print(f"transform_path for {path}")
     shell = win32com.client.Dispatch("WScript.Shell")
@@ -34,12 +43,7 @@ def expand_windows_symlinks(path):
 
     return os.path.join(*parts)
 
-def home_dir():
-    hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
-    hom = hom.replace('\\', '/')
-    return hom
-
-def replace_vars(input_string, input_dict):
+def replace_vars(input_string, input_dict=replacement_strings):
     for key, func in input_dict.items():
         if "$" + key in input_string:
             input_string = input_string.replace("$" + key, func())
@@ -54,17 +58,13 @@ def deep_merge(dict1, dict2):
             result[key] = value
     return result
 
-replacement_strings = {
-    'HOME': home_dir,
-}
-
 class SettingsManager():
     default_settings_path = '$HOME/AppData/Local/AIPacenotes/settings.json'
     default_voices_path_user = '$HOME/AppData/Local/BeamNG.drive/latest/settings/aipacenotes/voices.json'
     default_voices_path_mod = '$HOME/AppData/Local/BeamNG.drive/latest/mods/unpacked/beamng-aipacenotes-mod/settings/aipacenotes/voices.json'
 
     def __init__(self, settings_fname=default_settings_path):
-        settings_fname = replace_vars(settings_fname, replacement_strings)
+        settings_fname = replace_vars(settings_fname)
         self.settings_fname = settings_fname
         self.settings = None
 
@@ -72,22 +72,22 @@ class SettingsManager():
         self.voices = None
     
     def detect_voices_fname(self):
-        voices_fname_user = replace_vars(self.default_voices_path_user, replacement_strings)
+        voices_fname_user = replace_vars(self.default_voices_path_user)
         voices_fname_user = expand_windows_symlinks(voices_fname_user)
 
         if os.path.isfile(voices_fname_user):
             return voices_fname_user
         else:
-            voices_fname_mod = replace_vars(self.default_voices_path_mod, replacement_strings)
+            voices_fname_mod = replace_vars(self.default_voices_path_mod)
             voices_fname_mod = expand_windows_symlinks(voices_fname_mod)
             return voices_fname_mod
     
     def get_search_paths(self):
         return self.settings['pacenotes_search_paths']
     
-    def get_transcription_txt(self):
+    def get_transcription_txt_fname(self):
         val = self.settings['transcription_txt']
-        updated = replace_vars(val, replacement_strings)
+        updated = replace_vars(val)
         updated = expand_windows_symlinks(updated)
         return updated
 
@@ -107,7 +107,7 @@ class SettingsManager():
 
         new_sp = []
         for sp in search_paths:
-             updated = replace_vars(sp, replacement_strings)
+             updated = replace_vars(sp)
              updated = expand_windows_symlinks(updated)
              new_sp.append(updated)
 
