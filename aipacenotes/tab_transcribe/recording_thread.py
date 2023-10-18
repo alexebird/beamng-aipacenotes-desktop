@@ -93,7 +93,49 @@ class RecordingThread(QThread):
             return True  # Activate the monitor dot
         else:
             return False  # Deactivate the monitor dot
+    
+    def buffer_audio_in(self):
+        def callback(indata, frames, time, status):
+            """This is called (from a separate thread) for each audio block."""
+            if status:
+                print(status, file=sys.stderr)
+            # if self.should_monitor or self.should_record:
+            self.q.put(indata.copy())
         
+        t_monitor_update = time.time()
+        monitor_update_limit_seconds = 0.1
+
+        # print(self.device)
+        with sd.InputStream(samplerate=self.samplerate, device=int(self.device['index']), channels=self.channels, callback=callback):
+            while self.isInterruptionRequested() == False:
+                audio_data = None
+                while not self.q.empty():
+                    frame = self.q.get()
+                    if audio_data is None:
+                        audio_data = np.empty((0,frame.shape[1]), dtype=frame.dtype)
+                    audio_data = np.concatenate((audio_data, frame))
+
+                if audio_data is None:
+                    continue
+
+                t_now = time.time()
+                if self.should_monitor and t_now - t_monitor_update > monitor_update_limit_seconds:
+                    self.audio_signal_detected.emit(self.analyze_frame_for_monitor(audio_data))
+                    t_monitor_update = t_now
+
+                if self.should_record:
+                    try:
+                        if self.f_out.closed:
+                            logging.warn('f_out is closed')
+                        self.f_out.write(audio_data)
+                    except sf.SoundFileRuntimeError as e:
+                        logging.error(e)
+
+                    # i dont really understand why this is needed, but without it, the UI gets blocked.
+                    QThread.msleep(10)
+                else:
+                    # dont let the thread eat up cpu
+                    QThread.msleep(100)
     
     def run(self):
         if self.startup_error:
@@ -101,57 +143,8 @@ class RecordingThread(QThread):
             return
 
         try:
-            def callback(indata, frames, time, status):
-                """This is called (from a separate thread) for each audio block."""
-                if status:
-                    print(status, file=sys.stderr)
-                # if self.should_monitor or self.should_record:
-                self.q.put(indata.copy())
-            
-            t_monitor_update = time.time()
-            monitor_update_limit_seconds = 0.1
-
-            # print(self.device)
-            with sd.InputStream(samplerate=self.samplerate, device=int(self.device['index']), channels=self.channels, callback=callback):
-                while self.isInterruptionRequested() == False:
-                    audio_data = None
-                    while not self.q.empty():
-                        frame = self.q.get()
-                        if audio_data is None:
-                            audio_data = np.empty((0,frame.shape[1]), dtype=frame.dtype)
-                        audio_data = np.concatenate((audio_data, frame))
-
-                    if audio_data is None:
-                        continue
-
-                    t_now = time.time()
-                    if self.should_monitor and t_now - t_monitor_update > monitor_update_limit_seconds:
-                        self.audio_signal_detected.emit(self.analyze_frame_for_monitor(audio_data))
-                        t_monitor_update = t_now
-
-                    if self.should_record:
-                        try:
-                            if self.f_out.closed:
-                                logging.warn('f_out is closed')
-                            self.f_out.write(audio_data)
-                            # logging.debug("wrote audio_data")
-                        except sf.SoundFileRuntimeError as e:
-                            print('error')
-                            print(e)
-                            # logging.error(e)
-                        # i dont really understand why this is needed, but without it, the UI gets blocked.
-                        QThread.msleep(10)
-                    else:
-                        # dont let the thread eat up cpu
-                        QThread.msleep(100)
-
-        # except KeyboardInterrupt:
-            # print('\nRecording finished: ' + repr(args.filename))
-            # parser.exit(0)
-        # except Exception as e:
-            # parser.exit(type(e).__name__ + ': ' + str(e))
+            self.buffer_audio_in()
         except Exception as e:
-            print("RecordingThread error")
             logging.exception("RecordingThread error")
             self.update_status.emit(f"Error: {str(e)}")
     
