@@ -1,55 +1,19 @@
-import pathlib
-import os
-import re
-import time
-import fnmatch
-import itertools
-
-from PyQt6.QtCore import (
-    Qt,
-    pyqtSignal,
-)
-
 from PyQt6.QtGui import (
     QAction,
     QKeySequence,
-    QColor,
 )
 
 from PyQt6.QtWidgets import (
     QMainWindow,
     QTabWidget,
-    QTableWidget,
-    QPushButton,
-    QSplitter,
-    QLabel,
-    QHeaderView,
-    QTableWidgetItem,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-)
-
-from aipacenotes.tab_pacenotes import (
-    ContextMenuTreeWidget,
-    TimerThread,
-    HealthcheckThread,
-    TaskManager,
-    PacenotesManager,
-    PacenotesTreeWidgetItem,
 )
 
 from aipacenotes.tab_pacenotes import PacenotesTabWidget
 from aipacenotes.tab_network import NetworkTabWidget
 from aipacenotes.tab_transcribe import TranscribeTabWidget
 
-from aipacenotes import client as aip_client
+# from aipacenotes import client as aip_client
 from aipacenotes.settings import SettingsManager
-
-import time
-
-pacenotes_file_pattern = '*.pacenotes.json'
-rally_file_pattern = '*.rally.json'
 
 class MainWindow(QMainWindow):
     def __init__(self):

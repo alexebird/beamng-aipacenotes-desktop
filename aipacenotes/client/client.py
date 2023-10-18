@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 
 # TODO should be in settings.json
 base_url = "https://pacenotes-concurrent-mo5q6vt2ea-uw.a.run.app"
-# base_url = "http://localhost:5000"
+base_url = "http://localhost:8080"
 
 create_pacenotes_audio_url = urljoin(base_url, 'pacenotes/audio/create')
 healthcheck_url = urljoin(base_url, 'health')

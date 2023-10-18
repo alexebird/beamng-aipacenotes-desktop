@@ -27,16 +27,18 @@ def exception_hook(exc_type, exc_value, exc_traceback):
    sys.exit()
 
 def set_up_logger():
-    date_time_obj = datetime.datetime.now()
-    timestamp_str = date_time_obj.strftime("%d-%b-%Y_%H_%M_%S")
-    filename = 'C:\\Users\\bird\\AppData\\Local\\BeamNG.drive\\0.30\\aipacenotes-crash-{}.log'.format(timestamp_str)
-    logging.basicConfig(filename=filename)
-    sys.excepthook = exception_hook
+    print(f"AIP_DEV is {is_dev()}")
+    if is_dev():
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    else:
+        date_time_obj = datetime.datetime.now()
+        timestamp_str = date_time_obj.strftime("%d-%b-%Y_%H_%M_%S")
+        filename = 'C:\\Users\\bird\\AppData\\Local\\BeamNG.drive\\0.30\\aipacenotes-crash-{}.log'.format(timestamp_str)
+        logging.basicConfig(filename=filename, level=logging.DEBUG)
+        sys.excepthook = exception_hook
 
 def start_app():
-    # if not is_dev():
-        # set_up_logger()
-
+    set_up_logger()
     app = QApplication(sys.argv)
     basedir = os.path.dirname(__file__)
     app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'icons', 'aipacenotes.ico')))

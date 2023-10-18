@@ -3,14 +3,15 @@ import time
 from . import statuses
 
 class Pacenote:
-
     dynamic_attrs = ['filesystem_status', 'network_status', 'updated_at']
-    static_attrs = ['pacenotes_fname', 'mission_id', 'mission_location', 'authors', 'desc', 'version_id', 
-              'version_installed', 'language_code', 'version_name', 'voice', 
-              'voice_name',
-            #   'pacenotes',
-              'note_name', 'note_text', 'audio_fname', 
-              'audio_path']
+    static_attrs = [
+        'pacenotes_fname',
+        'mission_id', 'mission_location',
+        'authors', 'desc',
+        'version_id', 'version_installed', 'version_name', 'language_code', 'voice', 'voice_name',
+        'note_name', 'note_text',
+        'audio_fname', 'audio_path',
+    ]
     all_attrs = static_attrs + dynamic_attrs
     all_attr_set = set(all_attrs)
 

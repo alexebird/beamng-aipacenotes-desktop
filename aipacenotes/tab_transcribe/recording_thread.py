@@ -1,46 +1,37 @@
 import wave
+import time
 import struct
 import logging
-import re
 import sys
-import time
 import os
-import shutil
-from pvrecorder import PvRecorder
-from PyQt6.QtCore import QThread, pyqtSignal
-
-from aipacenotes.settings import (
-    replace_vars, 
-    expand_windows_symlinks,
-)
-
-import argparse
 import tempfile
 import queue
-import sys
+
+from PyQt6.QtCore import QThread, pyqtSignal
 
 import sounddevice as sd
 import soundfile as sf
-import numpy  # Make sure NumPy is loaded before it is used in the callback
-assert numpy  # avoid "imported but unused" message (W0611)
-
+import numpy as np
 
 class RecordingThread(QThread):
     update_status = pyqtSignal(str)
     # update_transcription = pyqtSignal(str)
     # source, fname, vehicle_pos dict
     recording_file_created = pyqtSignal(str, str, object)
+    audio_signal_detected = pyqtSignal(bool)
 
-    def __init__(self, device_name_substring):
+    def __init__(self, settings_manager):
         super(RecordingThread, self).__init__()
-        # self.fname_transcription = fname_transcription
-        # self.audio_out_fname = 'out.wav'
-        # self.device_idx = None
-        # self.device_name = None
-        # self.device_name_substring = device_name_substring
-        # self._detect_device()
 
-        self.device = self.get_default_audio_device()
+        self.settings_manager = settings_manager
+        self.startup_error = False
+
+        try:
+            self.device = self.get_default_audio_device()
+        except sd.PortAudioError as e:
+            print("startup error in RecordingThread")
+            self.startup_error = True
+
         self.samplerate = 16000
         self.channels = 1
 
@@ -48,22 +39,20 @@ class RecordingThread(QThread):
         
         # self.recorder = None
         self.should_record = False
+        self.should_monitor = True
         # self.reset_audio_buffer()
         self.q = queue.Queue()
 
         self.setup_tmp_dir()
+    
+    def shouldMonitor(self, on):
+        self.should_monitor = on
 
     def setup_tmp_dir(self):
         if os.environ.get('AIP_DEV', 'f') == 't':
             self.tmpdir = 'tmp/audio'
         else:
-            tmpdir = '$HOME/AppData/Local/BeamNG.drive/latest/temp/aipacenotes'
-            tmpdir = replace_vars(tmpdir)
-            tmpdir = expand_windows_symlinks(tmpdir)
-            self.tmpdir = tmpdir
-
-        print(f'tempdir={self.tmpdir}')
-        os.makedirs(self.tmpdir, exist_ok=True)
+            self.tmpdir = self.settings_manager.get_tmpdir()
 
         for filename in os.listdir(self.tmpdir):
             file_path = os.path.join(self.tmpdir, filename)
@@ -77,13 +66,13 @@ class RecordingThread(QThread):
         # self.audio_buffer = []
         self.q = queue.Queue()
 
-    def query_devices(self):
-        device_info = sd.query_devices(None, 'input')
-        print(sd.default.device)
-        device_info = sd.query_devices()
-        # devices = []
-        # for
-        return device_info
+    # def query_devices(self):
+    #     device_info = sd.query_devices(None, 'input')
+    #     print(sd.default.device)
+    #     device_info = sd.query_devices()
+    #     # devices = []
+    #     # for
+    #     return device_info
 
     def get_default_audio_device(self):
         self.device = sd.query_devices(None, 'input')
@@ -94,74 +83,77 @@ class RecordingThread(QThread):
         # for
         return [self.device]
     
-    # def _detect_device(self):
-    #     for index, device in enumerate(PvRecorder.get_available_devices()):
-    #         # match = re.search(r"USB Audio Device", str(device))
-    #         # if match:
-    #         if self.device_name_substring in str(device):
-    #             print(f"using device [{index}]{device}")
-    #             self.device_idx = index
-    #             break
+    def analyze_frame_for_monitor(self, frame, threshold=0.0025):
+        # Assuming frame is a NumPy array
+        rms = np.sqrt(np.mean(np.square(frame)))
+        # print(len(frame))
+        # print(rms)
 
-    #     if self.device_idx == -1:
-    #         self.update_status.emit(f"Couldn't find device matching '{self.device_name_substring}'")
+        if rms > threshold:
+            return True  # Activate the monitor dot
+        else:
+            return False  # Deactivate the monitor dot
+        
     
-    # def read_frame(self):
-    #     frame = self.recorder.read()
-    #     self.audio_buffer.extend(frame)
-
-    # def run(self):
-    #     print("RecordingThread starting")
-    #     try:
-    #         while self.isInterruptionRequested() == False:
-    #             if self.should_record:
-    #                 self.read_frame()
-    #             else:
-    #                 # dont let the thread eat up cpu
-    #                 QThread.msleep(100)
-    #     except Exception as e:
-    #         print("RecordingThread error")
-    #         print(e)
-    #         self.update_status.emit(f"Error: {str(e)}")
-    #     # finally:
-    #         # self.update_status.emit("recording...done")
-    #         # self.update_status.emit("transcribing...")
-    #         # recorder.stop()
-    #         # with wave.open(self.audio_out_fname, 'w') as f:
-    #         #     f.setparams((1, 2, 16000, 512, "NONE", "NONE"))
-    #         #     f.writeframes(struct.pack("h" * len(audio), *audio))
-    #         # recorder.delete()
-    #         # self.transcribe(self.audio_out_fname)
-    #         # self.update_status.emit("idle")
-
-    # def _getq(self):
-        # return self.q
-
     def run(self):
+        if self.startup_error:
+            logging.error("startup_error is true, so not starting main loop")
+            return
+
         try:
-            # print(self.device)
             def callback(indata, frames, time, status):
                 """This is called (from a separate thread) for each audio block."""
                 if status:
                     print(status, file=sys.stderr)
+                # if self.should_monitor or self.should_record:
                 self.q.put(indata.copy())
+            
+            t_monitor_update = time.time()
+            monitor_update_limit_seconds = 0.1
 
+            # print(self.device)
             with sd.InputStream(samplerate=self.samplerate, device=int(self.device['index']), channels=self.channels, callback=callback):
-                    while self.isInterruptionRequested() == False:
+                while self.isInterruptionRequested() == False:
+                    audio_data = None
+                    while not self.q.empty():
                         frame = self.q.get()
-                        # print(frame)
-                        if self.should_record:
-                            # print(self.q.qsize())
-                            try:
-                                if self.f_out.closed:
-                                    print('closed')
-                                self.f_out.write(frame)
-                            except sf.SoundFileRuntimeError as e:
-                                print(e)
-                                pass
-                        else:
-                            # dont let the thread eat up cpu
-                            QThread.msleep(100)
+                        if audio_data is None:
+                            audio_data = np.empty((0,frame.shape[1]), dtype=frame.dtype)
+                        audio_data = np.concatenate((audio_data, frame))
+
+                    # print(self.q.qsize())
+                    if audio_data is None:
+                        continue
+
+                    # print(len(audio_data))
+
+                    t_now = time.time()
+                    if self.should_monitor and t_now - t_monitor_update > monitor_update_limit_seconds:
+                        self.audio_signal_detected.emit(self.analyze_frame_for_monitor(audio_data))
+                        t_monitor_update = t_now
+                        # logging.debug("monitor update")
+
+                    # import threading
+                    # print("Current thread:", threading.current_thread().name)
+
+                    # print("Current QThread:", QThread.currentThread())
+
+
+                    if self.should_record:
+                        try:
+                            if self.f_out.closed:
+                                logging.warn('f_out is closed')
+                            self.f_out.write(audio_data)
+                            # logging.debug("wrote audio_data")
+                        except sf.SoundFileRuntimeError as e:
+                            print('error')
+                            print(e)
+                            # logging.error(e)
+                        QThread.msleep(10)
+                    else:
+                        # dont let the thread eat up cpu
+                        QThread.msleep(100)
+
         # except KeyboardInterrupt:
             # print('\nRecording finished: ' + repr(args.filename))
             # parser.exit(0)
@@ -173,6 +165,7 @@ class RecordingThread(QThread):
             self.update_status.emit(f"Error: {str(e)}")
     
     def start_recording(self):
+        logging.debug("start_recording")
         self.fname_out = tempfile.mktemp(prefix='out_', suffix='.wav', dir=self.tmpdir)
         self.f_out = sf.SoundFile(self.fname_out, mode='x', samplerate=self.samplerate, channels=self.channels)
         self.should_record = True
@@ -180,6 +173,7 @@ class RecordingThread(QThread):
         return self.fname_out
         
     def stop_recording(self, src, vehicle_pos=None):
+        logging.debug("stop_recording")
         self.should_record = False
         if self.f_out:
             self.f_out.close()

@@ -11,14 +11,10 @@ from PyQt6.QtCore import (
 )
 
 from PyQt6.QtGui import (
-    # QAction,
-    # QKeySequence,
     QColor,
 )
 
 from PyQt6.QtWidgets import (
-    # QMainWindow,
-    # QTabWidget,
     QTableWidget,
     QPushButton,
     QSplitter,
@@ -30,25 +26,17 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
 )
 
-# from aipacenotes.tab_pacenotes import (
+from aipacenotes.concurrency import TaskManager
+from aipacenotes import client as aip_client
+
 from . import (
     ContextMenuTreeWidget,
     TimerThread,
     HealthcheckThread,
-    TaskManager,
     PacenotesManager,
     PacenotesTreeWidgetItem,
-)
-
-# from aipacenotes.tab_pacenotes import (
-from . import (
     statuses,
-    # Pacenote,
 )
-from aipacenotes import client as aip_client
-from aipacenotes.settings import SettingsManager
-
-import time
 
 pacenotes_file_pattern = '*.pacenotes.json'
 rally_file_pattern = '*.rally.json'
@@ -292,7 +280,7 @@ class PacenotesTabWidget(QWidget):
             selected_item_path = selected_items[0].full_path
             search_paths.append(selected_item_path)
         else:
-            search_paths = self.settings_manager.get_search_paths()
+            search_paths = self.settings_manager.get_pacenotes_search_paths()
 
         pacenotes_files = []
         rally_files = []
@@ -454,7 +442,7 @@ class PacenotesTabWidget(QWidget):
 
         idx = {}
 
-        for root_path in self.settings_manager.get_search_paths():
+        for root_path in self.settings_manager.get_pacenotes_search_paths():
             # print(f"populating tree for {root_path}")
             root_item_name = shorten_root_path(root_path)
             root_item = PacenotesTreeWidgetItem(self.tree, [root_item_name], root_path)

@@ -1,20 +1,26 @@
 import json
+import copy
 import os
 import win32com.client
+import re
 
 from . import defaults
+
+def deep_merge(dict1, dict2):
+    result = dict1.copy()  # Start with dict1's keys and values
+    for key, value in dict2.items():  # Add dict2's keys and values
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
 
 def home_dir():
     hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
     hom = hom.replace('\\', '/')
     return hom
-
-replacement_strings = {
-    'HOME': home_dir,
-}
-
+ 
 def expand_windows_symlinks(path):
-    # print(f"transform_path for {path}")
     shell = win32com.client.Dispatch("WScript.Shell")
     parts = []
     while True:
@@ -25,9 +31,7 @@ def expand_windows_symlinks(path):
             shortcut = shell.CreateShortCut(lnk_path)
             new_part = shortcut.Targetpath
 
-        # print(f"path={path}")
         path, part = os.path.split(path)
-        # print(f"{path} {part} -> {new_part}")
 
         if new_part is not None:
             parts.append(new_part)
@@ -43,75 +47,83 @@ def expand_windows_symlinks(path):
 
     return os.path.join(*parts)
 
-def replace_vars(input_string, input_dict=replacement_strings):
-    for key, func in input_dict.items():
-        if "$" + key in input_string:
-            input_string = input_string.replace("$" + key, func())
-    return input_string
-
-def deep_merge(dict1, dict2):
-    result = dict1.copy()  # Start with dict1's keys and values
-    for key, value in dict2.items():  # Add dict2's keys and values
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
-
 class SettingsManager():
-    default_settings_path = '$HOME/AppData/Local/AIPacenotes/settings.json'
-    default_voices_path_user = '$HOME/AppData/Local/BeamNG.drive/latest/settings/aipacenotes/voices.json'
-    default_voices_path_mod = '$HOME/AppData/Local/BeamNG.drive/latest/mods/unpacked/beamng-aipacenotes-mod/settings/aipacenotes/voices.json'
+    var_regex = r'\$[a-zA-Z0-9_]+'
 
-    def __init__(self, settings_fname=default_settings_path):
-        settings_fname = replace_vars(settings_fname)
-        self.settings_fname = settings_fname
-        self.settings = None
-
-        # self.voices_fname = self.detect_voices_fname()
+    def __init__(self):
+        self.settings = self.expand_default_settings()
         self.voices = None
-    
+
+    def replace_vars(self, vars, input_string):
+        output_string = input_string
+        matches = re.findall(self.var_regex, input_string)
+
+        for match in matches:
+            var_name = match[1:]
+            if var_name in vars:
+                replacement = vars[var_name]
+                output_string = output_string.replace(match, replacement)
+
+        return output_string
+
     def detect_voices_fname(self):
-        voices_fname_user = replace_vars(self.default_voices_path_user)
-        voices_fname_user = expand_windows_symlinks(voices_fname_user)
+        voices_fname_user = self.settings['voices_path_user']
 
         if os.path.isfile(voices_fname_user):
             return voices_fname_user
         else:
-            voices_fname_mod = replace_vars(self.default_voices_path_mod)
-            voices_fname_mod = expand_windows_symlinks(voices_fname_mod)
+            voices_fname_mod = self.settings['voices_path_mod']
             return voices_fname_mod
     
-    def get_search_paths(self):
+    def get_pacenotes_search_paths(self):
         return self.settings['pacenotes_search_paths']
     
     def get_transcription_txt_fname(self):
-        val = self.settings['transcription_txt']
-        updated = replace_vars(val)
-        updated = expand_windows_symlinks(updated)
-        return updated
+        return os.path.join(self.get_settings_dir(), self.settings['transcription_txt'])
+    
+    def get_settings_dir(self):
+        val = self.settings['settings_dir']
+        os.makedirs(val, exist_ok=True)
+        return  val
+    
+    def get_tempdir(self):
+        val = self.settings['temp_dir']
+        os.makedirs(val, exist_ok=True)
+        return  val
+
+    def get_settings_path_user(self):
+        return self.settings['settings_path_user']
+
+    def expand_path(self, vars, fname):
+        fname = self.replace_vars(vars, fname)
+        fname = expand_windows_symlinks(fname)
+        fname = os.path.normpath(fname)
+        return fname
+    
+    def expand_default_settings(self):
+        settings = copy.deepcopy(defaults.default_settings)
+        settings['HOME'] = home_dir()
+
+        for key, val in settings.items():
+            # print(f"{key}={settings[key]}")
+            if type(val) == str:
+                settings[key] = self.expand_path(settings, val)
+            elif type(val) == list:
+                settings[key] = [self.expand_path(settings, v) for v in val]
+            # print(f"{key}={settings[key]}")
+
+        return settings
 
     def load(self):
         print(f"loading settings")
+        user_settings = self.get_settings_path_user()
 
-        self.settings = defaults.default_settings
-
-        if os.path.isfile(self.settings_fname):
-            print(f"merging in settings file at {self.settings_fname}")
-            with open(self.settings_fname, 'r') as file:
+        if os.path.isfile(user_settings):
+            print(f"merging in settings file at {user_settings}")
+            with open(user_settings, 'r') as file:
                 data = json.load(file)
-
             self.settings = deep_merge(self.settings, data)
         
-        search_paths = self.settings['pacenotes_search_paths'] 
-
-        new_sp = []
-        for sp in search_paths:
-             updated = replace_vars(sp)
-             updated = expand_windows_symlinks(updated)
-             new_sp.append(updated)
-
-        self.settings['pacenotes_search_paths'] = new_sp
         print(f"settings={self.settings}")
 
         self.load_voices()

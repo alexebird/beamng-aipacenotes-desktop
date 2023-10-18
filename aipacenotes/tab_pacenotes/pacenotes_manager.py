@@ -1,78 +1,12 @@
 import os
 import re
-import time
 import json
 import pathlib
 
-from aipacenotes.tab_pacenotes import (
-    statuses,
+from . import (
     Pacenote,
+    Database,
 )
-
-class Database():
-    def __init__(self):
-        self.pacenotes = []
-        # unique index pacenotes on id
-        self.unique_index_pn_id = {}
-    
-    def select(self, pnid):
-        if pnid in self.unique_index_pn_id:
-            return self.unique_index_pn_id[pnid]
-        else:
-            return None
-    
-    def select_with_fname(self, query_pacenotes_fname):
-        result = []
-
-        for pn in self.pacenotes:
-            if pn.pacenotes_fname == query_pacenotes_fname:
-                result.append(pn)
-
-        return result
-    
-    def delete(self, pnid):
-        pn = self.select(pnid)
-        self.pacenotes.remove(pn)
-        del self.unique_index_pn_id[pnid]
-    
-    def insert(self, pacenote):
-        pnid = pacenote.id
-        if pnid in self.unique_index_pn_id:
-            raise ValueError(f'insert: pacenote exists with id={pnid}')
-        self.pacenotes.append(pacenote)
-        self.unique_index_pn_id[pnid] = pacenote
-        pacenote.touch()
-        return pacenote
-    
-    def upsert(self, pacenote):
-        pnid = pacenote.id
-        if pnid in self.unique_index_pn_id:
-            return self.update(pacenote)
-        else:
-            return self.insert(pacenote)
-    
-    def update(self, pacenote):
-        pnid = pacenote.id
-        existing = self.unique_index_pn_id[pnid]
-        if existing is None:
-            raise ValueError(f'update: pacenote doesnt exist with id={pnid}')
-
-        def update_attrs(attrs):
-            update_made = False
-            for attr in attrs:
-                old_val = getattr(existing, attr)
-                new_val = getattr(pacenote, attr)
-                if new_val != old_val:
-                    setattr(existing, attr, new_val)
-                    print(f"updated field {attr} from '{old_val}' to '{new_val}'")
-                    update_made = True
-            return update_made
-
-        if update_attrs(Pacenote.static_attrs):
-            existing.touch()
-            existing.set_dirty()
-
-        return existing
 
 class PacenotesManager():
     def __init__(self, settings_manager):
@@ -141,7 +75,7 @@ class PacenotesManager():
             pacenote_expected_audio_files.add(audio_path)
 
         # in the search paths, get all the existing ogg files.
-        for root_path in self.settings_manager.get_search_paths():
+        for root_path in self.settings_manager.get_pacenotes_search_paths():
             ogg_search_path = pathlib.Path(root_path)
             paths = ogg_search_path.rglob('pacenotes/*/pacenote_*.ogg')
             found_oggs = set()
@@ -249,7 +183,7 @@ class PacenotesManager():
 
                     data_dict['authors'] = authors
                     data_dict['desc'] = description
-                    data_dict['version_id'] = notebook_oldId
+                    data_dict['version_id'] = str(notebook_oldId)
                     data_dict['version_installed'] = installed
                     data_dict['version_name'] = notebook_name
 
@@ -259,6 +193,7 @@ class PacenotesManager():
                     cloud = 'gcp'
                     data_dict['language_code'] = voice_config[name_with_cloud(cloud, 'language_code')]
                     data_dict['voice_name'] = voice_config[name_with_cloud(cloud, 'voice_name')]
+                    data_dict['voice'] = voice
 
                     data_dict['note_name'] = pacenote_name
                     data_dict['note_text'] = note
@@ -270,41 +205,6 @@ class PacenotesManager():
 
                     if note != "":
                         objs.append(pn)
-
-                # for pacenote in pacenotes:
-                #     note_name = pacenote['name']
-                #     note_text = pacenote['note']
-                #     audio_fname = f'pacenote_{self.normalize_pacenote_text(note_text)}.ogg'
-                #     # audio_path acts as the pacenote id
-                #     audio_path = self.build_pacenotes_audio_file_path(fname, version_id, audio_fname)
-
-                #     data_dict = {}
-                #     data_dict['pacenotes_fname'] = fname
-                #     data_dict['mission_id'] = mission_id
-                #     data_dict['mission_location'] = mission_location
-
-                #     data_dict['authors'] = authors
-                #     data_dict['desc'] = desc
-                #     data_dict['version_id'] = version_id
-                #     data_dict['version_installed'] = version_installed
-                #     data_dict['language_code'] = language_code
-                #     data_dict['version_name'] = version_name
-                #     data_dict['voice'] = voice
-                #     data_dict['voice_name'] = voice_name
-
-                #     data_dict['note_name'] = note_name
-                #     data_dict['note_text'] = note_text
-                #     data_dict['audio_fname'] = audio_fname
-                #     data_dict['audio_path'] = audio_path
-
-                #     # data_dict['filesystem_status'] = statuses.PN_STATUS_UNKNOWN
-                #     # data_dict['network_status'] = None
-                #     # data_dict['updated_at'] = time.time()
-
-                #     pn = Pacenote()
-                #     pn.set_data(data_dict)
-
-                #     objs.append(pn)
         
         return objs
 

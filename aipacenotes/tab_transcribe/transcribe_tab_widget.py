@@ -1,53 +1,32 @@
-import pathlib
 import json
+import logging
 import os
-import re
-import time
-import fnmatch
-import itertools
-
-
-from PyQt6.QtCore import QThread, pyqtSignal, Qt
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, QLabel
 
 from PyQt6.QtCore import (
     Qt,
     pyqtSignal,
 )
 
-from PyQt6.QtGui import (
-    # QAction,
-    # QKeySequence,
-    QColor,
-)
-
 from PyQt6.QtWidgets import (
-    # QMainWindow,
-    # QTabWidget,
-    QTableWidget,
     QPushButton,
     QComboBox,
-    QSplitter,
+    QTextEdit,
     QLabel,
-    QHeaderView,
-    QTableWidgetItem,
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
 )
+
+import sounddevice as sd
+
+from . import MonitorWidget
 
 from aipacenotes.voice import SpeechToText
-from aipacenotes import client as aip_client
-from aipacenotes.settings import SettingsManager
+# from aipacenotes import client as aip_client
+# from aipacenotes.settings import SettingsManager
+from aipacenotes.concurrency import TaskManager
 from . import RecordingThread
-from aipacenotes.tab_pacenotes import (
-    TaskManager,
-)
 
 class TranscribeTabWidget(QWidget):
-    
-    # hello_world = pyqtSignal()
-
     update_transcription_txt = pyqtSignal()
 
     def __init__(self, settings_manager, network_tab):
@@ -66,10 +45,10 @@ class TranscribeTabWidget(QWidget):
 
         # self.recording_thread = None
         self.fname_transcription = self.settings_manager.get_transcription_txt_fname()
-        self.recording_thread = RecordingThread("USB Audio Device")
-        # self.recording_thread.update_transcription.connect(self.update_transcription)
+        self.recording_thread = RecordingThread(self.settings_manager)
         self.recording_thread.recording_file_created.connect(self.recording_file_created)
         self.recording_thread.update_status.connect(self.update_status)
+        self.recording_thread.audio_signal_detected.connect(self.audio_signal_detected)
         self.recording_thread.start()
     
         self.update_transcription_txt.connect(self.update_transcription)
@@ -81,7 +60,11 @@ class TranscribeTabWidget(QWidget):
 
         self.device_combo = QComboBox()
         self.device_combo.setFixedWidth(400)
-        devices = [f'[{d["index"]}] {d["name"]}' for d in self.recording_thread.get_default_audio_device()]
+        try:
+            devices = [f'[{d["index"]}] {d["name"]}' for d in self.recording_thread.get_default_audio_device()]
+        except sd.PortAudioError as e:
+            print("startup error in RecordingThread")
+            self.startup_error = True
         self.device_combo.addItems(devices)
         button_layout.addWidget(self.device_combo)
         button_layout.setStretchFactor(self.device_combo, 1)
@@ -120,8 +103,13 @@ class TranscribeTabWidget(QWidget):
         self.status_label = QLabel('ready')
         layout.addWidget(self.status_label)
 
+        self.monitor = MonitorWidget()
+        self.monitor.monitor_checkbox_changed.connect(self.monitor_checkbox_changed)
+        layout.addWidget(self.monitor)
+
         self.transcription_output = QTextEdit()
         self.transcription_output.setReadOnly(True)
+        self.transcription_output.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
         layout.addWidget(self.transcription_output)
 
         self.setLayout(layout)
@@ -139,7 +127,7 @@ class TranscribeTabWidget(QWidget):
         if vehicle_pos:
             vehicle_pos['_src'] = 'start_recording'
             vehicle_pos['_file'] = fname
-            self.append_vehicle_pos(vehicle_pos)
+            self.append_vehicle_pos(vehicle_pos, '             ')
 
     def stop_recording(self, src='stop_recording', vehicle_pos=None):
         # if self.recording_thread:
@@ -156,8 +144,11 @@ class TranscribeTabWidget(QWidget):
         self.start_recording()
     
     def update_transcription(self):
-        with open(self.fname_transcription, 'r') as f:
-            self.transcription_output.setText(f.read())
+        if os.path.isfile(self.fname_transcription):
+            with open(self.fname_transcription, 'r') as f:
+                self.transcription_output.setText(f.read())
+        else:
+            logging.warn(f"couldnt find transcription.txt at: {self.fname_transcription}")
 
     def recording_file_created(self, src, fname, vehicle_pos):
         # self.transcription_output.append(f"wrote recording to file: {fname}")
@@ -204,3 +195,9 @@ class TranscribeTabWidget(QWidget):
     
     def append_vehicle_pos(self, vehicle_pos, prefix=""):
         self.append_transcript(prefix + json.dumps(vehicle_pos))
+
+    def audio_signal_detected(self, above_threshold):
+        self.monitor.setMonitorState(above_threshold)
+
+    def monitor_checkbox_changed(self, should_monitor):
+        self.recording_thread.shouldMonitor(should_monitor)
