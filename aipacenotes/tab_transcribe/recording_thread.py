@@ -121,23 +121,13 @@ class RecordingThread(QThread):
                             audio_data = np.empty((0,frame.shape[1]), dtype=frame.dtype)
                         audio_data = np.concatenate((audio_data, frame))
 
-                    # print(self.q.qsize())
                     if audio_data is None:
                         continue
-
-                    # print(len(audio_data))
 
                     t_now = time.time()
                     if self.should_monitor and t_now - t_monitor_update > monitor_update_limit_seconds:
                         self.audio_signal_detected.emit(self.analyze_frame_for_monitor(audio_data))
                         t_monitor_update = t_now
-                        # logging.debug("monitor update")
-
-                    # import threading
-                    # print("Current thread:", threading.current_thread().name)
-
-                    # print("Current QThread:", QThread.currentThread())
-
 
                     if self.should_record:
                         try:
@@ -149,6 +139,7 @@ class RecordingThread(QThread):
                             print('error')
                             print(e)
                             # logging.error(e)
+                        # i dont really understand why this is needed, but without it, the UI gets blocked.
                         QThread.msleep(10)
                     else:
                         # dont let the thread eat up cpu
