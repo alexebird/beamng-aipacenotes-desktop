@@ -13,11 +13,14 @@ import sounddevice as sd
 import soundfile as sf
 import numpy as np
 
+from . import Transcript, TranscriptStore
+
 class RecordingThread(QThread):
     update_status = pyqtSignal(str)
     # update_transcription = pyqtSignal(str)
     # source, fname, vehicle_pos dict
-    recording_file_created = pyqtSignal(str, str, object)
+    recording_file_created = pyqtSignal(str, str, float, object)
+    transcript_created = pyqtSignal(Transcript)
     audio_signal_detected = pyqtSignal(bool)
 
     def __init__(self, settings_manager):
@@ -37,10 +40,8 @@ class RecordingThread(QThread):
 
         self.f_out = None
         
-        # self.recorder = None
         self.should_record = False
         self.should_monitor = True
-        # self.reset_audio_buffer()
         self.q = queue.Queue()
 
         self.setup_tmp_dir()
@@ -50,7 +51,7 @@ class RecordingThread(QThread):
 
     def setup_tmp_dir(self):
         if os.environ.get('AIP_DEV', 'f') == 't':
-            self.tmpdir = 'tmp/audio'
+            self.tmpdir = 'tmp\\audio'
         else:
             self.tmpdir = self.settings_manager.get_tmpdir()
 
@@ -62,32 +63,13 @@ class RecordingThread(QThread):
             except Exception as e:
                 print(f"Failed to delete {file_path}. Reason: {e}")
     
-    def reset_audio_buffer(self):
-        # self.audio_buffer = []
-        self.q = queue.Queue()
-
-    # def query_devices(self):
-    #     device_info = sd.query_devices(None, 'input')
-    #     print(sd.default.device)
-    #     device_info = sd.query_devices()
-    #     # devices = []
-    #     # for
-    #     return device_info
-
     def get_default_audio_device(self):
         self.device = sd.query_devices(None, 'input')
-        # print(self.device)
-        # print(sd.default.device)
-        # device_info = sd.query_devices()
-        # devices = []
-        # for
         return [self.device]
     
-    def analyze_frame_for_monitor(self, frame, threshold=0.0025):
+    def analyze_frame_for_monitor(self, frame, threshold=0.001):
         # Assuming frame is a NumPy array
         rms = np.sqrt(np.mean(np.square(frame)))
-        # print(len(frame))
-        # print(rms)
 
         if rms > threshold:
             return True  # Activate the monitor dot
@@ -98,9 +80,9 @@ class RecordingThread(QThread):
         def callback(indata, frames, time, status):
             """This is called (from a separate thread) for each audio block."""
             if status:
-                print(status, file=sys.stderr)
-            # if self.should_monitor or self.should_record:
-            self.q.put(indata.copy())
+                print(f"buffer_audio_in: {status}")
+            if self.should_monitor or self.should_record:
+                self.q.put(indata.copy())
         
         t_monitor_update = time.time()
         monitor_update_limit_seconds = 0.1
@@ -164,9 +146,10 @@ class RecordingThread(QThread):
             # print(src)
             # print(self.fname_out)
             # print(vehicle_pos)
-            self.recording_file_created.emit(src, self.fname_out, vehicle_pos)
-        else:
-            self.f_out = None
+            transcript = Transcript(src, self.fname_out, vehicle_pos)
+            self.transcript_created.emit(transcript)
+            # self.recording_file_created.emit(src, self.fname_out, t_now, vehicle_pos)
+        self.f_out = None
         self.update_status.emit("ready")
 
     def stop(self):
@@ -185,40 +168,3 @@ class RecordingThread(QThread):
             f.setparams((1, 2, 16000, 512, "NONE", "NONE"))
             f.writeframes(struct.pack("h" * len(self.audio_buffer), *self.audio_buffer))
         return out_fname
-
-    # def run_old(self):
-    #     # print("RecordingThread starting")
-    #     # device_idx = -1
-    #     audio = []
-    #     frame_length = 512
-    #     recorder = PvRecorder(device_index=self.device_idx, frame_length=frame_length)
-
-    #     try:
-    #         recorder.start()
-    #         # start_ts = time.time()
-    #         # reset_timeout_sec = 30
-    #         self.update_status.emit("recording...")
-
-    #         while self.isInterruptionRequested() == False:
-    #             # now_ts = time.time()
-    #             # if now_ts - start_ts > reset_timeout_sec:
-    #                 # dont let audio recordings go on too long. if it has been too long, its probably idle so just throw away the data.
-    #                 # audio = []
-
-    #             frame = recorder.read()
-    #             audio.extend(frame)
-    #         self.update_status.emit("transcribing...")
-    #     except Exception as e:
-    #         print(e)
-    #         self.update_status.emit(f"Error: {str(e)}")
-
-    #     finally:
-    #         # self.update_status.emit("recording...done")
-    #         self.update_status.emit("transcribing...")
-    #         recorder.stop()
-    #         with wave.open(self.audio_out_fname, 'w') as f:
-    #             f.setparams((1, 2, 16000, 512, "NONE", "NONE"))
-    #             f.writeframes(struct.pack("h" * len(audio), *audio))
-    #         recorder.delete()
-    #         self.transcribe(self.audio_out_fname)
-    #         self.update_status.emit("idle")

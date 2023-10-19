@@ -1,3 +1,4 @@
+from .transcript import *
 from .recording_thread import *
 
 # widgets

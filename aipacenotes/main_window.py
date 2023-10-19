@@ -18,6 +18,8 @@ from aipacenotes.settings import SettingsManager
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        from PyQt6.QtCore import QThread
+        print("MainWindow QThread:", QThread.currentThread())
 
         self.resize(1200, 800)
 

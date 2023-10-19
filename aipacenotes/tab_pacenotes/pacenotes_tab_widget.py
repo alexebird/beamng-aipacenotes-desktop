@@ -145,7 +145,7 @@ class PacenotesTabWidget(QWidget):
 
         self.timer_thread = TimerThread(self.timeout_sec)
         self.timer_thread.timeout.connect(self.on_timer_timeout)
-        self.timer_thread.start()
+        # self.timer_thread.start()
 
         self.task_manager = TaskManager(10)
         self.update_pacenotes_info_label()

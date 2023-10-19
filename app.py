@@ -4,6 +4,7 @@ import sys
 import os
 import logging
 import datetime
+import numba
 
 from PyQt6 import QtGui
 from PyQt6.QtWidgets import QApplication
@@ -28,6 +29,10 @@ def exception_hook(exc_type, exc_value, exc_traceback):
 
 def set_up_logger():
     print(f"AIP_DEV is {is_dev()}")
+
+    numba_logger = logging.getLogger('numba')
+    numba_logger.setLevel(logging.WARNING)
+
     if is_dev():
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     else:
