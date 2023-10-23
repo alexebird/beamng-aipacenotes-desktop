@@ -5,6 +5,7 @@ import win32com.client
 import re
 
 from . import defaults
+import aipacenotes.util
 
 def deep_merge(dict1, dict2):
     result = dict1.copy()  # Start with dict1's keys and values
@@ -17,7 +18,7 @@ def deep_merge(dict1, dict2):
 
 def home_dir():
     hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
-    hom = hom.replace('\\', '/')
+    hom = aipacenotes.util.normalize_path(hom)
     return hom
  
 def expand_windows_symlinks(path):
@@ -98,6 +99,7 @@ class SettingsManager():
         fname = self.replace_vars(vars, fname)
         fname = expand_windows_symlinks(fname)
         fname = os.path.normpath(fname)
+        fname = aipacenotes.util.normalize_path(fname)
         return fname
     
     def expand_default_settings(self):

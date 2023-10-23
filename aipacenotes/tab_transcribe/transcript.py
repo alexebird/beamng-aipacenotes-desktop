@@ -5,8 +5,8 @@ from datetime import datetime
 from aipacenotes.voice import SpeechToText
 
 class Transcript:
-    col_count = 3
-    table_headers = ["Transcript", "Timestamp", "File"]
+    col_count = 5
+    table_headers = ["Transcript", "File", "Timestamp", "Source", "Vehicle Position"]
 
     def __init__(self, src, fname, vehicle_pos):
         self.ts = time.time()
@@ -17,9 +17,11 @@ class Transcript:
 
     def as_json(self):
         return  {
-            '_transcript': self.txt,
-            '_src': self.src,
-            '_file': self.fname,
+            'transcript': self.txt,
+            'src': self.src,
+            'file': self.fname,
+            'timestamp': self.ts,
+            'vehicle_pos': self.vehicle_pos,
         }
     
     def __str__(self):
@@ -27,11 +29,22 @@ class Transcript:
     
     def fieldAt(self, col):
         if col == 0:
-            return self.txt
+            if self.txt:
+                return self.txt
+            else:
+                return '[processing...]'
         elif col == 1:
-            return datetime.fromtimestamp(self.ts).strftime('%Y-%m-%d %H:%M:%S')
-        elif col == 2:
             return self.fname
+        elif col == 2:
+            return datetime.fromtimestamp(self.ts).strftime('%Y-%m-%d %H:%M:%S')
+        elif col == 3:
+            return self.src
+        elif col == 4:
+            vp = ""
+            if self.vehicle_pos and "pos" in self.vehicle_pos:
+                vp = '[' + ', '.join(self.vehicle_pos['pos']) + ']'
+
+            return vp
         else:
             return None
 

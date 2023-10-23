@@ -38,7 +38,9 @@ def set_up_logger():
     else:
         date_time_obj = datetime.datetime.now()
         timestamp_str = date_time_obj.strftime("%d-%b-%Y_%H_%M_%S")
-        filename = 'C:\\Users\\bird\\AppData\\Local\\BeamNG.drive\\0.30\\aipacenotes-crash-{}.log'.format(timestamp_str)
+
+        hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
+        filename = '{}/AppData/Local/BeamNG.drive/0.30/aipacenotes-crash-{}.log'.format(hom, timestamp_str)
         logging.basicConfig(filename=filename, level=logging.DEBUG)
         sys.excepthook = exception_hook
 

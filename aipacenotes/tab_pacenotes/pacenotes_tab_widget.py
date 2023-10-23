@@ -5,6 +5,9 @@ import time
 import fnmatch
 import itertools
 
+import sounddevice as sd
+import soundfile as sf
+
 from PyQt6.QtCore import (
     Qt,
     pyqtSignal,
@@ -17,6 +20,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QTableWidget,
     QPushButton,
+    QTreeView,
     QSplitter,
     QLabel,
     QHeaderView,
@@ -24,19 +28,25 @@ from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
+    QTreeWidget,
+    QTreeWidgetItem,
 )
 
 from aipacenotes.concurrency import TaskManager
 from aipacenotes import client as aip_client
 
-from . import (
-    ContextMenuTreeWidget,
-    TimerThread,
-    HealthcheckThread,
-    PacenotesManager,
-    PacenotesTreeWidgetItem,
-    statuses,
-)
+# from . import (
+    # ContextMenuTreeWidget,
+    # TimerThread,
+    # HealthcheckThread,
+    # PacenotesManager,
+    # PacenotesTreeWidgetItem,
+    # PacenotesTreeModel,
+    # statuses,
+# )
+from .rally_file_scanner import RallyFileScanner
+from .pacenotes_table import NotebookTable, NotebookTableModel
+from .rally_file import Notebook
 
 pacenotes_file_pattern = '*.pacenotes.json'
 rally_file_pattern = '*.rally.json'
@@ -49,8 +59,6 @@ class Benchmark:
         elapsed_time = time.time() - self.start_time
         ms = int(elapsed_time * 1000)
         print(f"{message}: {ms}ms")
-
-# class MainWindow(QMainWindow):
 
 class PacenotesTabWidget(QWidget):
     
@@ -71,13 +79,13 @@ class PacenotesTabWidget(QWidget):
         self.controls_layout = QHBoxLayout()
         self.controls_pane.setLayout(self.controls_layout)
 
-        self.on_off_button = QPushButton()
-        self.on_off_button.setCheckable(True)
-        self.on_off_button.setChecked(True)
-        self.on_off_button.setFixedHeight(50)
-        self.on_off_button.setFixedWidth(50)
-        self.on_off_button.toggled.connect(self.on_toggle)
-        self.controls_layout.addWidget(self.on_off_button)
+        # self.on_off_button = QPushButton()
+        # self.on_off_button.setCheckable(True)
+        # self.on_off_button.setChecked(True)
+        # self.on_off_button.setFixedHeight(50)
+        # self.on_off_button.setFixedWidth(50)
+        # self.on_off_button.toggled.connect(self.on_toggle)
+        # self.controls_layout.addWidget(self.on_off_button)
 
         self.controls_label = QLabel("", self.controls_pane)
         self.controls_layout.addWidget(self.controls_label)
@@ -86,27 +94,80 @@ class PacenotesTabWidget(QWidget):
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # Add a QTreeWidget to the left pane
-        self.tree = ContextMenuTreeWidget()
-        self.tree.setFixedWidth(500)
-        self.tree.setHeaderLabel("Pacenotes Files")
-        self.tree.itemClicked.connect(self.on_tree_item_clicked)
-        self.splitter.addWidget(self.tree)
+        # self.tree = ContextMenuTreeWidget()
+        # self.tree.setFixedWidth(500)
+        # self.tree.setHeaderLabel("Pacenotes Files")
+        # self.tree.itemClicked.connect(self.on_tree_item_clicked)
+        # self.splitter.addWidget(self.tree)
 
-        # Add a blank widget to the right pane
-        self.right_pane = QWidget()
-        self.right_layout = QVBoxLayout(self.right_pane)
-        self.splitter.addWidget(self.right_pane)
+        # self.pacenotes_info_label = QLabel("This is a label\nFoobar", self.right_pane)
+        # self.right_layout.addWidget(self.pacenotes_info_label)
 
-        self.pacenotes_info_label = QLabel("This is a label\nFoobar", self.right_pane)
-        self.right_layout.addWidget(self.pacenotes_info_label)
-
-        self.table = QTableWidget(0, 10)  
-        self.table.setHorizontalHeaderLabels(['Status', 'Updated At', 'Pacenote', 'Voice', 'Audio File', 'Pacenote Name', 'Version Name', 'Version ID', 'Mission ID', 'Location']) 
+        # self.table = QTableWidget(0, 10)  
+        # self.table.setHorizontalHeaderLabels(['Status', 'Updated At', 'Pacenote', 'Voice', 'Audio File', 'Pacenote Name', 'Version Name', 'Version ID', 'Mission ID', 'Location']) 
         # Set table header to stretch to the size of the window
 
-        header = self.table.horizontalHeader()       
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        # header = self.table.horizontalHeader()       
+        # header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        # header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        # stylesheet = """
+        # QHeaderView::section::horizontal{
+        #     Background-color:rgb(240,240,240);
+        #     border-radius:14px;
+        #     border-right: 1px solid rgb(130, 136, 144);
+        #     border-bottom: 1px solid rgb(130, 136, 144);
+        # }
+        # """
+        # header.setStyleSheet(stylesheet)
+
+        # self.table.setColumnWidth(0, 75)
+
+        # self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        # self.table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        # self.table.verticalHeader().setVisible(False)
+        # self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        # self.table.setWordWrap(False)
+        # self.right_layout.addWidget(self.table)
+
+        # self.timeout_ms = 1000
+        # self.timeout_sec = self.timeout_ms / 1000
+
+        # self.healthcheck_thread = HealthcheckThread(60)
+        # self.healthcheck_thread.healthcheck_started.connect(self.on_healthcheck_started)
+        # self.healthcheck_thread.healthcheck_passed.connect(self.on_healthcheck_passed)
+        # self.healthcheck_thread.healthcheck_failed.connect(self.on_healthcheck_failed)
+        # self.healthcheck_thread.start()
+        # self.set_controls_label_startup_healthcheck_message()
+
+        # self.timer_thread = TimerThread(self.timeout_sec)
+        # self.timer_thread.timeout.connect(self.on_timer_timeout)
+        # self.timer_thread.start()
+
+        self.task_manager = TaskManager(10)
+        # self.update_pacenotes_info_label()
+
+        self.settings_manager = settings_manager
+        # self.pacenotes_manager = PacenotesManager(self.settings_manager)
+
+        # self.pacenote_updated.connect(self.on_pacenote_updated)
+
+        # self.is_toggled = True
+        # self.on_toggle(True)
+
+        self.tree = QTreeWidget()
+        self.tree.setColumnCount(1)
+        self.tree.setHeaderLabels(["Pacenotes"])
+        self.tree.itemClicked.connect(self.on_tree_item_clicked)
+        self.populate_tree()
+
+        self.splitter.addWidget(self.tree)
+
+        self.notebook_table = NotebookTable()
+        self.notebook_table.verticalHeader().setVisible(False)
+
+        header = self.notebook_table.horizontalHeader()       
+        # header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        # header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         stylesheet = """
         QHeaderView::section::horizontal{
             Background-color:rgb(240,240,240);
@@ -117,46 +178,81 @@ class PacenotesTabWidget(QWidget):
         """
         header.setStyleSheet(stylesheet)
 
-        self.table.setColumnWidth(0, 75)
+        # self.pacenotes_list = []
+        self.notebook_table_model = NotebookTableModel()
+        self.notebook_table.setModel(self.notebook_table_model)
+        self.notebook_table.setColumnWidth(0, 400)
+        self.notebook_table.setColumnWidth(1, 400)
+        self.notebook_table.setColumnWidth(2, 150)
+        self.notebook_table.setColumnWidth(3, 100)
+        self.notebook_table.setColumnWidth(4, 400)
+        self.notebook_table.play_clicked.connect(self.play_audio)
 
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.table.setWordWrap(False)
-        self.right_layout.addWidget(self.table)
+        # Add a blank widget to the right pane
+        self.right_pane = QWidget()
+        self.right_layout = QVBoxLayout(self.right_pane)
+        self.right_layout.addWidget(self.notebook_table)
+        self.splitter.addWidget(self.right_pane)
 
         # Create a widget for the first tab
-        # self.tab_contents = QWidget()
         vbox = QVBoxLayout()
         vbox.addWidget(self.controls_pane)
         vbox.addWidget(self.splitter)
         self.setLayout(vbox)
 
-        self.timeout_ms = 1000
-        self.timeout_sec = self.timeout_ms / 1000
+    def populate_tree(self):
+        rally_scanner = RallyFileScanner(self.settings_manager)
+        rally_scanner.scan()
+        root_items = []
+        for search_path in rally_scanner.search_paths:
+            item_search_path = QTreeWidgetItem([str(search_path.fname)])
+            item_search_path.setData(0, Qt.ItemDataRole.UserRole, search_path)
+            for rally_file in search_path.rally_files:
+                child_rally_file = QTreeWidgetItem([str(rally_file)])
+                child_rally_file.setData(0, Qt.ItemDataRole.UserRole, rally_file)
+                item_search_path.addChild(child_rally_file)
+                for notebook in rally_file.notebooks():
+                    child_notebook = QTreeWidgetItem([notebook.name()])
+                    child_notebook.setData(0, Qt.ItemDataRole.UserRole, notebook)
+                    child_rally_file.addChild(child_notebook)
+            root_items.append(item_search_path)
 
-        self.healthcheck_thread = HealthcheckThread(60)
-        self.healthcheck_thread.healthcheck_started.connect(self.on_healthcheck_started)
-        self.healthcheck_thread.healthcheck_passed.connect(self.on_healthcheck_passed)
-        self.healthcheck_thread.healthcheck_failed.connect(self.on_healthcheck_failed)
-        self.healthcheck_thread.start()
-        self.set_controls_label_startup_healthcheck_message()
+        self.tree.insertTopLevelItems(0, root_items)
+        self.tree.expandAll()
 
-        self.timer_thread = TimerThread(self.timeout_sec)
-        self.timer_thread.timeout.connect(self.on_timer_timeout)
-        # self.timer_thread.start()
+    def on_tree_item_clicked(self, item, column):
+        # print(f'tree item clicked: {item}')
+        data = item.data(column, Qt.ItemDataRole.UserRole)
+        print(data)
 
-        self.task_manager = TaskManager(10)
-        self.update_pacenotes_info_label()
+        if isinstance(data, Notebook):
+            print('clicked a notebook')
+            notebook = data
+            self.notebook_table_model.setNotebook(notebook)
+            self.notebook_table_model.layoutChanged.emit()
 
-        self.settings_manager = settings_manager
-        self.pacenotes_manager = PacenotesManager(self.settings_manager)
+    def play_audio(self, row):
+        def _play(fname):
+                # Read the WAV file
+                data, samplerate = sf.read(fname)
+                # Play the WAV file
+                sd.play(data, samplerate)
+                # Wait until the file is done playing
+                sd.wait()
 
-        self.pacenote_updated.connect(self.on_pacenote_updated)
+        notebook = self.notebook_table_model.notebook
+        if notebook:
+            pacenote = notebook.pacenotes()[row]
+            if pacenote.note_file_exists():
+                self.task_manager.submit(_play, pacenote.note_abs_path())
 
-        self.is_toggled = True
-        self.on_toggle(True)
+
+
+
+
+
+
+
     
     def update_pacenotes_info_label(self):
         self.pacenotes_info_label.setText(f"""
@@ -225,18 +321,18 @@ class PacenotesTabWidget(QWidget):
 
         self.pacenotes_manager.clean_up_orphaned_audio()
 
-    def on_healthcheck_started(self):
-        # print('healthcheck_started')
-        pass
+    # def on_healthcheck_started(self):
+    #     # print('healthcheck_started')
+    #     pass
 
-    def on_healthcheck_passed(self):
-        # print('healthcheck_passed')
-        pass
+    # def on_healthcheck_passed(self):
+    #     # print('healthcheck_passed')
+    #     pass
 
-    def on_healthcheck_failed(self):
-        print('healthcheck_failed')
-        self.set_controls_label_startup_healthcheck_message()
-        self.on_off_button.setChecked(False)
+    # def on_healthcheck_failed(self):
+    #     print('healthcheck_failed')
+    #     self.set_controls_label_startup_healthcheck_message()
+    #     self.on_off_button.setChecked(False)
     
     def get_filtered_pacenotes(self, pacenotes_files_filter):
         return [d for d in self.pacenotes_manager.db.pacenotes if d.pacenotes_fname in pacenotes_files_filter]
@@ -351,9 +447,6 @@ class PacenotesTabWidget(QWidget):
 
         self.pacenote_updated.emit()
         return res
-
-    def on_tree_item_clicked(self, item, column):
-        print(f'Item clicked: {item.full_path}')
     
     def on_pacenote_updated(self):
         # print("on_pacenote_updated:", threading.current_thread().name)
@@ -371,11 +464,11 @@ class PacenotesTabWidget(QWidget):
         self.update_table(sorted_pacenotes)
     
     def update_table(self, data):
-        self.table.setRowCount(0)
+        self.notebook_table.setRowCount(0)
         
         for i, pacenote in enumerate(data):
             (status, updated_at, note, voice, audio, name, version, versionId, mission, location) = self.to_table_row(pacenote)
-            self.table.insertRow(i)
+            self.notebook_table.insertRow(i)
 
             status_item = QTableWidgetItem(status)
             if status == statuses.PN_STATUS_ERROR:
@@ -386,7 +479,7 @@ class PacenotesTabWidget(QWidget):
                 status_item.setBackground(QColor(0, 255, 255))
             elif status == statuses.PN_STATUS_OK:
                 status_item.setBackground(QColor(0, 255, 0))
-            self.table.setItem(i, 0, status_item)
+            self.notebook_table.setItem(i, 0, status_item)
 
             font = status_item.font()
             font.setBold(True)
@@ -398,16 +491,16 @@ class PacenotesTabWidget(QWidget):
             updated_at = f"{updated_at}s ago"
             item = QTableWidgetItem(updated_at)
             # item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            self.table.setItem(i, 1, item)
+            self.notebook_table.setItem(i, 1, item)
 
-            self.table.setItem(i, 2, QTableWidgetItem(note))
-            self.table.setItem(i, 3, QTableWidgetItem(voice))
-            self.table.setItem(i, 4, QTableWidgetItem(audio))
-            self.table.setItem(i, 5, QTableWidgetItem(name))
-            self.table.setItem(i, 6, QTableWidgetItem(version))
-            self.table.setItem(i, 7, QTableWidgetItem(versionId))
-            self.table.setItem(i, 8, QTableWidgetItem(mission))
-            self.table.setItem(i, 9, QTableWidgetItem(location))
+            self.notebook_table.setItem(i, 2, QTableWidgetItem(note))
+            self.notebook_table.setItem(i, 3, QTableWidgetItem(voice))
+            self.notebook_table.setItem(i, 4, QTableWidgetItem(audio))
+            self.notebook_table.setItem(i, 5, QTableWidgetItem(name))
+            self.notebook_table.setItem(i, 6, QTableWidgetItem(version))
+            self.notebook_table.setItem(i, 7, QTableWidgetItem(versionId))
+            self.notebook_table.setItem(i, 8, QTableWidgetItem(mission))
+            self.notebook_table.setItem(i, 9, QTableWidgetItem(location))
 
         # self.table.resizeColumnsToContents()
 
@@ -418,86 +511,86 @@ class PacenotesTabWidget(QWidget):
         row_data = [pacenote.get_data(f) for f in row_fields]
         return row_data
     
-    def populate_tree(self):
-        bench = Benchmark()
-        selected_items = self.tree.selectedItems()
-        selected_item_path = None
+    # def populate_tree(self):
+    #     bench = Benchmark()
+    #     selected_items = self.tree.selectedItems()
+    #     selected_item_path = None
 
-        if len(selected_items) > 1:
-            print(f"tree widget multi-select is not supported yet")
-        elif len(selected_items) == 1:
-            selected_item_path = selected_items[0].full_path
+    #     if len(selected_items) > 1:
+    #         print(f"tree widget multi-select is not supported yet")
+    #     elif len(selected_items) == 1:
+    #         selected_item_path = selected_items[0].full_path
         
-        # print(f"tree selected_item_path={selected_item_path}")
+    #     # print(f"tree selected_item_path={selected_item_path}")
 
-        self.tree.clear()
+    #     self.tree.clear()
 
-        def shorten_root_path(input_string):
-            pattern = r".*\\(BeamNG\.drive)"
-            match = re.search(pattern, input_string)
-            if match:
-                last_component = match.group(1)
-                return re.sub(pattern, last_component, input_string)
-            return input_string
+    #     def shorten_root_path(input_string):
+    #         pattern = r".*\\(BeamNG\.drive)"
+    #         match = re.search(pattern, input_string)
+    #         if match:
+    #             last_component = match.group(1)
+    #             return re.sub(pattern, last_component, input_string)
+    #         return input_string
 
-        idx = {}
+    #     idx = {}
 
-        for root_path in self.settings_manager.get_pacenotes_search_paths():
-            # print(f"populating tree for {root_path}")
-            root_item_name = shorten_root_path(root_path)
-            root_item = PacenotesTreeWidgetItem(self.tree, [root_item_name], root_path)
-            idx[root_path] = root_item
-            search_path = pathlib.Path(root_path)
-            paths = search_path.rglob(pacenotes_file_pattern)
-            rally_paths = search_path.rglob(rally_file_pattern)
-            paths = itertools.chain(paths, rally_paths)
-            # pacenotes_files = []
-            # rally_files = []
-            for e in paths:
-                # print(e)
-                # pacenotes_files.append(str(e))
-                rel_path = e.relative_to(root_path)
-                parts = pathlib.PurePath(rel_path).parts
-                dir_parts = parts[:-1]
-                file_part = parts[-1]
-                parent_node = self.get_nested_node(idx, root_path, dir_parts)
-                full_path = os.path.join(root_path, rel_path)
-                file_node = PacenotesTreeWidgetItem(parent_node, [file_part], full_path)
-                idx[full_path] = file_node
+    #     for root_path in self.settings_manager.get_pacenotes_search_paths():
+    #         # print(f"populating tree for {root_path}")
+    #         root_item_name = shorten_root_path(root_path)
+    #         root_item = PacenotesTreeWidgetItem(self.tree, [root_item_name], root_path)
+    #         idx[root_path] = root_item
+    #         search_path = pathlib.Path(root_path)
+    #         paths = search_path.rglob(pacenotes_file_pattern)
+    #         rally_paths = search_path.rglob(rally_file_pattern)
+    #         paths = itertools.chain(paths, rally_paths)
+    #         # pacenotes_files = []
+    #         # rally_files = []
+    #         for e in paths:
+    #             # print(e)
+    #             # pacenotes_files.append(str(e))
+    #             rel_path = e.relative_to(root_path)
+    #             parts = pathlib.PurePath(rel_path).parts
+    #             dir_parts = parts[:-1]
+    #             file_part = parts[-1]
+    #             parent_node = self.get_nested_node(idx, root_path, dir_parts)
+    #             full_path = os.path.join(root_path, rel_path)
+    #             file_node = PacenotesTreeWidgetItem(parent_node, [file_part], full_path)
+    #             idx[full_path] = file_node
 
-        self.tree.expandAll()
+    #     self.tree.expandAll()
 
-        if selected_item_path is not None:
-            selected_item = idx[selected_item_path]
-            if selected_item is not None:
-                selected_item.setSelected(True)
+    #     if selected_item_path is not None:
+    #         selected_item = idx[selected_item_path]
+    #         if selected_item is not None:
+    #             selected_item.setSelected(True)
 
         # bench.stop('populate_tree')
   
-    def get_nested_node(self, idx, root_path, names):
-        node = self.get_node(idx, None, root_path, root_path)
-        names_so_far = []
-        for name in names:
-            names_so_far.append(name)
-            idx_key = self.make_idx_key(root_path, names_so_far)
-            parent_key = self.make_idx_key(root_path, names_so_far[:-1])
-            if parent_key is None:
-                parent_key = root_path
-            node = self.get_node(idx, parent_key, name, idx_key)
-            parent_key = idx_key
-        return node
+    # def get_nested_node(self, idx, root_path, names):
+    #     node = self.get_node(idx, None, root_path, root_path)
+    #     names_so_far = []
+    #     for name in names:
+    #         names_so_far.append(name)
+    #         idx_key = self.make_idx_key(root_path, names_so_far)
+    #         parent_key = self.make_idx_key(root_path, names_so_far[:-1])
+    #         if parent_key is None:
+    #             parent_key = root_path
+    #         node = self.get_node(idx, parent_key, name, idx_key)
+    #         parent_key = idx_key
+    #     return node
     
-    def make_idx_key(self, root_path, names):
-        if len(names) > 0:
-            return os.path.join(root_path, *names)
-        else:
-            return None
+    # def make_idx_key(self, root_path, names):
+    #     if len(names) > 0:
+    #         return os.path.join(root_path, *names)
+    #     else:
+    #         return None
     
-    def get_node(self, idx, parent_key, name, idx_key):
-        if idx_key in idx:
-            return idx[idx_key]
-        elif parent_key is not None:
-            idx[idx_key] = PacenotesTreeWidgetItem(idx[parent_key], [name], idx_key)
-            return idx[idx_key]
-        else:
-            raise ValueError("parent_key is None")
+    # def get_node(self, idx, parent_key, name, idx_key):
+    #     if idx_key in idx:
+    #         return idx[idx_key]
+    #     elif parent_key is not None:
+    #         idx[idx_key] = PacenotesTreeWidgetItem(idx[parent_key], [name], idx_key)
+    #         return idx[idx_key]
+    #     else:
+    #         raise ValueError("parent_key is None")

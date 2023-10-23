@@ -15,9 +15,9 @@ from PyQt6.QtGui import QPainter, QMouseEvent, QPainterPath
 from PyQt6.QtWidgets import (
     QStyledItemDelegate,
     QMessageBox,
+    QHeaderView,
     QPushButton,
     QComboBox,
-    QTextEdit,
     QTableView,
     QLabel,
     QWidget,
@@ -85,8 +85,8 @@ class CustomTable(QTableView):
 
     def __init__(self):
         super().__init__()
-        self.setItemDelegateForColumn(2, PlayButtonDelegate())
-        self.itemDelegateForColumn(2).buttonClicked.connect(self.playClicked)
+        self.setItemDelegateForColumn(1, PlayButtonDelegate())
+        self.itemDelegateForColumn(1).buttonClicked.connect(self.playClicked)
 
     def playClicked(self, row):
         print(f"Play button clicked on row {row}")
@@ -196,12 +196,27 @@ class TranscribeTabWidget(QWidget):
         self.table = CustomTable()
         self.table.verticalHeader().setVisible(False)
 
+        header = self.table.horizontalHeader()       
+        # header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        # header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        stylesheet = """
+        QHeaderView::section::horizontal{
+            Background-color:rgb(240,240,240);
+            border-radius:14px;
+            border-right: 1px solid rgb(130, 136, 144);
+            border-bottom: 1px solid rgb(130, 136, 144);
+        }
+        """
+        header.setStyleSheet(stylesheet)
+
         self.transcript_store = TranscriptStore()
         self.table_model = TranscriptionStoreTableModel(self.transcript_store)
         self.table.setModel(self.table_model)
         self.table.setColumnWidth(0, 400)
         self.table.setColumnWidth(1, 400)
-        self.table.setColumnWidth(2, 400)
+        self.table.setColumnWidth(2, 150)
+        self.table.setColumnWidth(3, 100)
+        self.table.setColumnWidth(4, 400)
         self.table.play_clicked.connect(self.play_audio)
 
         layout.addWidget(self.table)

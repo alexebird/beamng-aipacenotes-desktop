@@ -5,12 +5,14 @@ import requests
 from urllib.parse import urljoin
 
 # TODO should be in settings.json
-base_url = "https://pacenotes-concurrent-mo5q6vt2ea-uw.a.run.app"
-base_url = "http://localhost:8080"
+# base_url = "https://pacenotes-concurrent-mo5q6vt2ea-uw.a.run.app"
+# base_url = "http://localhost:8080"
+base_url = "https://aipacenotes.alxb.us"
+prefix = 'f'
 
-create_pacenotes_audio_url = urljoin(base_url, 'pacenotes/audio/create')
-healthcheck_url = urljoin(base_url, 'health')
-transcribe_url = urljoin(base_url, 'transcribe')
+create_pacenotes_audio_url = urljoin(base_url, 'f/pacenotes/audio/create')
+healthcheck_url = urljoin(base_url, 'f/health')
+transcribe_url = urljoin(base_url, 'f/transcribe')
 
 last_healthcheck_ts = 0.0
 
