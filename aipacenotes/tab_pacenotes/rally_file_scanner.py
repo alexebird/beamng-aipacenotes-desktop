@@ -11,6 +11,9 @@ class SearchPath:
     def __str__(self):
         return self.fname
 
+    def file_explorer_path(self):
+        return self.fname
+
 class RallyFileScanner:
     pattern =  '*.rally.json'
 

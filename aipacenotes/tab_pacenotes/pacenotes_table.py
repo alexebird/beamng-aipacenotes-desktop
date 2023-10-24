@@ -1,3 +1,5 @@
+from functools import partial
+
 from PyQt6.QtCore import (
     Qt,
     pyqtSignal,
@@ -6,15 +8,23 @@ from PyQt6.QtCore import (
     QPoint
 )
 
-from PyQt6.QtGui import QPainter, QMouseEvent, QPainterPath, QColor
+from PyQt6.QtGui import (
+    QPainter,
+    QMouseEvent,
+    QPainterPath,
+    QColor,
+    QFont,
+)
 
 from PyQt6.QtWidgets import (
     QStyledItemDelegate,
+    QMenu,
     QMessageBox,
     QHeaderView,
     QPushButton,
     QComboBox,
     QTableView,
+    QAbstractItemView,
     QLabel,
     QWidget,
     QVBoxLayout,
@@ -62,20 +72,127 @@ class PlayButtonDelegate(QStyledItemDelegate):
                     return True
         return False
 
+# from PyQt6.QtCore import Qt, pyqtSignal
+# from PyQt6.QtWidgets import QStyledItemDelegate, QPushButton, QHBoxLayout, QWidget, QStyle
+# from PyQt6.QtGui import QMouseEvent, QPainter, QPainterPath
+
+# class PacenoteRowControls(QStyledItemDelegate):
+#     playClicked = pyqtSignal(int)
+#     copyClicked = pyqtSignal(int)
+#     forceUpdateClicked = pyqtSignal(int)
+
+#     def __init__(self, table_model, parent=None):
+#         super(PacenoteRowControls, self).__init__(parent)
+#         self.table_model = table_model
+
+#     # def paint(self, painter, option, index):
+#     #     super().paint(painter, option, index)
+#     #     print('paint')
+
+#     def createEditor(self, parent, option, index):
+#         print('ce')
+#         # Create QWidget and Layout
+#         editor = QWidget(parent)
+#         layout = QHBoxLayout(editor)
+#         layout.setContentsMargins(0, 0, 0, 0)
+#         layout.setSpacing(0)
+
+#         row = index.row()
+
+#         notebook = self.table_model.notebook
+#         if notebook:
+#             pacenote = notebook.pacenotes()[row]
+
+#         # Play Button
+#         play_btn = QPushButton()
+#         play_btn.setIcon(parent.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+#         play_btn.setToolTip("Play pacenote")
+#         layout.addWidget(play_btn)
+#         play_btn.clicked.connect(lambda pacenote=pacenote: self.playClicked.emit(pacenote))
+
+#         # Copy Button
+#         copy_btn = QPushButton()
+#         copy_btn.setIcon(parent.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarNormalButton))
+#         copy_btn.setToolTip("Copy path to clipboard")
+#         layout.addWidget(copy_btn)
+#         copy_btn.clicked.connect(lambda pacenote=pacenote: self.copyClicked.emit(pacenote))
+
+#         # Force Update Button
+#         force_update_btn = QPushButton()
+#         force_update_btn.setIcon(parent.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
+#         force_update_btn.setToolTip("Force re-generate audio file")
+#         layout.addWidget(force_update_btn)
+#         force_update_btn.clicked.connect(lambda pacenote=pacenote: self.forceUpdateClicked.emit(pacenote))
+
+#         return editor
+
+#     def setEditorData(self, editor, index):
+#         print('setEditorData')
+#         # pass  # No data setting needed
+
+#     def setModelData(self, editor, model, index):
+#         print('setModelData')
+#         # pass  # No data retrieval needed
+
+#     def updateEditorGeometry(self, editor, option, index):
+#         editor.setGeometry(option.rect)
+
 class NotebookTable(QTableView):
     play_clicked = pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
+        self.verticalHeader().setVisible(False)
+        # self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.showContextMenu)
+
+        header = self.horizontalHeader()       
+        # header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        # header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        stylesheet = """
+        QHeaderView::section::horizontal{
+            Background-color:rgb(240,240,240);
+            border-radius:14px;
+            border-right: 1px solid rgb(130, 136, 144);
+            border-bottom: 1px solid rgb(130, 136, 144);
+        }
+        """
+        header.setStyleSheet(stylesheet)
+
+        # self.setItemDelegateForColumn(4, PacenoteRowControls(self.model))
+
         self.setItemDelegateForColumn(3, PlayButtonDelegate())
         self.itemDelegateForColumn(3).buttonClicked.connect(self.playClicked)
+    
+    def showContextMenu(self, position):
+        index = self.indexAt(position)
+        row = index.row()
+
+        globalPos = self.mapToGlobal(position)
+        menu = QMenu()
+        menu.addAction("Copy audio file path", partial(self.context_menu_action_copy_audio_file_path, row))
+        menu.addAction("Force re-generate audio file", partial(self.context_menu_action_force_regen, row))
+        
+        menuSize = menu.sizeHint()
+        globalPos.setY(globalPos.y() + int(menuSize.height()/2))
+        menu.exec(globalPos)
+
+    def context_menu_action_copy_audio_file_path(self, row):
+        print(f"Option 1 selected for row {row}")
+
+    def context_menu_action_force_regen(self, row):
+        print(f"Option 2 selected for row {row}")
 
     def playClicked(self, row):
         print(f"Play button clicked on row {row}")
         self.play_clicked.emit(row)
 
 class NotebookTableModel(QAbstractTableModel):
-    headers = ['file?', 'note', 'name', 'fname']
+    headers = ['file?', 'note', 'name', 'fname', 'actions']
 
     def __init__(self):
         super(NotebookTableModel, self).__init__()
@@ -111,6 +228,8 @@ class NotebookTableModel(QAbstractTableModel):
                     return pacenote.name()
                 elif index.column() == 3:
                     return pacenote.note_basename()
+                # elif index.column() == 4:
+                    # return "foo"
             else:
                 return None
 
@@ -122,6 +241,20 @@ class NotebookTableModel(QAbstractTableModel):
                         return QColor(Qt.GlobalColor.green)
                     else:
                         return QColor(Qt.GlobalColor.red)
+        
+        if role == Qt.ItemDataRole.FontRole:
+            if self.notebook:
+                pacenote = self.notebook.pacenotes()[index.row()]
+                if index.column() == 0:
+                    font = QFont()
+                    font.setBold(True)
+                    return font
+
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            if self.notebook:
+                pacenote = self.notebook.pacenotes()[index.row()]
+                if index.column() == 0:
+                    return Qt.AlignmentFlag.AlignCenter
         
         return None
     

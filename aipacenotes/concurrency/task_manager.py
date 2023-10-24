@@ -12,7 +12,7 @@ class TaskManager:
         self.futures = [future for future in self.futures if not future.done()]
 
     def submit(self, fn, *args):
-        print(f"submitting task with fn={fn} args='{args}'")
+        # print(f"submitting task with fn={fn} args='{args}'")
         future = self.executor.submit(fn, *args)
         future.add_done_callback(self.handle_future)
         self.futures.append(future)

@@ -19,6 +19,9 @@ class Pacenote:
     def name(self):
         return self.data['name']
     
+    def oldId(self):
+        return self.data['oldId']
+    
     def note(self):
         return self.data['note']
 
@@ -37,6 +40,14 @@ class Pacenote:
     def note_file_exists(self):
         return os.path.isfile(self.note_abs_path())
 
+    def needs_update(self):
+        return not self.note_file_exists()
+
+    def write_file(self, data):
+        self.notebook.ensure_pacenotes_dir()
+        with open(self.note_abs_path(), 'wb') as f:
+            f.write(data)
+
 class Notebook:
     def __init__(self, rally_file, data):
         self.rally_file = rally_file
@@ -50,6 +61,9 @@ class Notebook:
     
     def name(self):
         return self.data['name']
+    
+    def voice(self):
+        return self.data['voice']
 
     def clean_name(self):
         s = self.name()
@@ -65,6 +79,9 @@ class Notebook:
     
     def ensure_pacenotes_dir(self):
         pathlib.Path(self.pacenotes_dir()).mkdir(parents=False, exist_ok=True)
+
+    def file_explorer_path(self):
+        return self.pacenotes_dir()
 
 class RallyFile:
     pacenotes_root_name = 'pacenotes'
@@ -86,6 +103,9 @@ class RallyFile:
     
     def basename(self):
         return os.path.basename(self.fname)
+
+    def file_explorer_path(self):
+        return self.dirname()
     
     def load(self):
         with open(self.fname) as f:

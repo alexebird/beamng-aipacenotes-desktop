@@ -19,7 +19,7 @@ class MonitorWidget(QWidget):
         # Create and configure the checkbox
         self.checkbox = QCheckBox()
         self.checkbox.setFixedWidth(15)
-        self.checkbox.setChecked(True)
+        self.checkbox.setChecked(False)
         self.checkbox.stateChanged.connect(self.checkbox_state_changed)
         # self.checkbox.setStyleSheet("border: 1px solid black;")
         layout.addWidget(self.checkbox)

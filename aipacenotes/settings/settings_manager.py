@@ -51,9 +51,16 @@ def expand_windows_symlinks(path):
 class SettingsManager():
     var_regex = r'\$[a-zA-Z0-9_]+'
 
-    def __init__(self):
+    def __init__(self, status_bar):
+        self.status_bar = status_bar
         self.settings = self.expand_default_settings()
         self.voices = None
+    
+    def update_status_left(self, txt):
+        self.status_bar.updateLeftLabel.emit(txt)
+    
+    def update_status_right(self, txt):
+        self.status_bar.updateRightLabel.emit(txt)
 
     def replace_vars(self, vars, input_string):
         output_string = input_string
@@ -139,3 +146,9 @@ class SettingsManager():
             print(f"no voice file detected at {fname}")
                 
         print(f"voices={self.voices}")
+    
+    def voice_config(self, voice):
+        if voice in self.voices:
+            return self.voices[voice]
+        else:
+            raise ValueError(f"voice 'voice' not found in voices.json")

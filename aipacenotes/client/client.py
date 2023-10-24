@@ -16,11 +16,10 @@ transcribe_url = urljoin(base_url, 'f/transcribe')
 
 last_healthcheck_ts = 0.0
 
-def post_create_pacenotes_audio(pacenote):
+def post_create_pacenotes_audio(pacenote_note, voice_config):
     data = {
-        "note_text": pacenote.note_text,
-        "voice_name": pacenote.voice_name,
-        "language_code": pacenote.language_code,
+        "note_text": pacenote_note,
+        "voice_config": voice_config,
     }
 
     headers = {
