@@ -174,8 +174,8 @@ class NotebookTable(QTableView):
 
         globalPos = self.mapToGlobal(position)
         menu = QMenu()
-        menu.addAction("Copy audio file path", partial(self.context_menu_action_copy_audio_file_path, row))
-        menu.addAction("Force re-generate audio file", partial(self.context_menu_action_force_regen, row))
+        menu.addAction("TODO - Copy audio file path", partial(self.context_menu_action_copy_audio_file_path, row))
+        menu.addAction("TODO - Force re-generate audio file", partial(self.context_menu_action_force_regen, row))
         
         menuSize = menu.sizeHint()
         globalPos.setY(globalPos.y() + int(menuSize.height()/2))
@@ -227,7 +227,7 @@ class NotebookTableModel(QAbstractTableModel):
                 elif index.column() == 1:
                     return pacenote.note()
                 elif index.column() == 2:
-                    return pacenote.language()
+                    return f'{pacenote.language()} ({pacenote.voice()})'
                 elif index.column() == 3:
                     return pacenote.name()
                 elif index.column() == 4:

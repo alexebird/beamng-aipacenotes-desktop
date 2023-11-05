@@ -34,6 +34,9 @@ class Pacenote:
     
     def voice(self):
         return self.codriver()['voice']
+    
+    def codriver_name(self):
+        return self.codriver()['name']
 
     def note_hash(self):
         hash_value = 0
@@ -45,7 +48,13 @@ class Pacenote:
         return f'pacenote_{self.note_hash()}.ogg'
     
     def note_abs_path(self):
-        return aipacenotes.util.normalize_path(os.path.join(self.notebook.pacenotes_dir(), self.note_basename()))
+        return aipacenotes.util.normalize_path(os.path.join(self.pacenotes_dir(), self.note_basename()))
+
+    def pacenotes_dir(self):
+        self.notebook.ensure_pacenotes_dir()
+        the_dir = aipacenotes.util.normalize_path(os.path.join(self.notebook.pacenotes_dir(), self.language(), self.codriver_name()))
+        pathlib.Path(the_dir).mkdir(parents=True, exist_ok=True)
+        return the_dir
     
     def note_file_exists(self):
         return os.path.isfile(self.note_abs_path())
@@ -87,18 +96,19 @@ class Notebook:
             return self._pacenotes
         
         codrivers = self.data['codrivers']
+        pacenotes = []
 
         for codriver_data in codrivers:
-            pacenotes = []
             for pacenote_data in self.data['pacenotes']:
                 # for each note language, make a copy of the whole note data.
                 for lang,note in pacenote_data['notes'].items():
-                    pn_data_copy = copy.deepcopy(pacenote_data)
-                    pn_data_copy['note'] = note
-                    pn_data_copy['language'] = lang
-                    pn_data_copy['codriver'] = copy.deepcopy(codriver_data)
-                    pacenote = Pacenote(self, pn_data_copy)
-                    pacenotes.append(pacenote)
+                    if codriver_data['language'] == lang:
+                        pn_data_copy = copy.deepcopy(pacenote_data)
+                        pn_data_copy['note'] = note
+                        pn_data_copy['language'] = lang
+                        pn_data_copy['codriver'] = codriver_data # copy.deepcopy(codriver_data)
+                        pacenote = Pacenote(self, pn_data_copy)
+                        pacenotes.append(pacenote)
         
         self._pacenotes = pacenotes
 
@@ -120,6 +130,7 @@ class NotebookFile:
 
     def __init__(self, fname):
         self.fname = aipacenotes.util.normalize_path(fname)
+        self.ensure_pacenotes_dir()
 
     def __str__(self):
         # return aipacenotes.util.normalize_path(os.path.join(self.mission_id(), self.basename()))
@@ -129,7 +140,7 @@ class NotebookFile:
         return aipacenotes.util.normalize_path(os.path.dirname(self.fname))
 
     def pacenotes_dir(self):
-        return aipacenotes.util.normalize_path(os.path.join(os.path.dirname(self.fname)))
+        return aipacenotes.util.normalize_path(os.path.join(os.path.dirname(self.fname), 'generated_pacenotes'))
     
     def ensure_pacenotes_dir(self):
         pathlib.Path(self.pacenotes_dir()).mkdir(parents=False, exist_ok=True)

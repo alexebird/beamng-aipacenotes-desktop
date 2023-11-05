@@ -55,9 +55,11 @@ class UpdateJob:
                 self.pacenote.write_file(response.content)
                 self._status = UPDATE_JOB_STATUS_SUCCESS
             else:
-                self._status = f'{UPDATE_JOB_STATUS_ERROR} {response.status_code}'
+                # self._status = f'{UPDATE_JOB_STATUS_ERROR} {response.status_code}'
+                self._status = UPDATE_JOB_STATUS_ERROR
         else:
-            self._status = f'{UPDATE_JOB_STATUS_ERROR} unknown voice: "{voice}"'
+            # self._status = f'{UPDATE_JOB_STATUS_ERROR} unknown voice: "{voice}'
+            self._status = UPDATE_JOB_STATUS_ERROR
 
         self._updated_at = time.time()
         self.update_ago_cache()
@@ -72,6 +74,7 @@ class UpdateJobsStore:
         self.settings_manager = settings_manager
         self.jobs = []
         self.pacenote_ids_lock = {}
+        self.pacenote_ids_error = {}
 
     def __len__(self):
         return len(self.jobs)
@@ -128,12 +131,19 @@ class UpdateJobsStore:
     
     def clear_lock(self, pacenote):
         id = pacenote_job_id(pacenote)
+        self.pacenote_ids_error[id] = self.pacenote_ids_lock[id]
         self.pacenote_ids_lock.pop(id, None)
     
     def has_job_for_pacenote(self, pacenote):
         id = pacenote_job_id(pacenote)
         if id in self.pacenote_ids_lock:
             job = self.pacenote_ids_lock[id]
+            if job is not None:
+                return True
+            else:
+                return False
+        elif id in self.pacenote_ids_error:
+            job = self.pacenote_ids_error[id]
             if job is not None:
                 return True
             else:
