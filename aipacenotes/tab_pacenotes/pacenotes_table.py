@@ -165,8 +165,8 @@ class NotebookTable(QTableView):
 
         # self.setItemDelegateForColumn(4, PacenoteRowControls(self.model))
 
-        self.setItemDelegateForColumn(3, PlayButtonDelegate())
-        self.itemDelegateForColumn(3).buttonClicked.connect(self.playClicked)
+        self.setItemDelegateForColumn(4, PlayButtonDelegate())
+        self.itemDelegateForColumn(4).buttonClicked.connect(self.playClicked)
     
     def showContextMenu(self, position):
         index = self.indexAt(position)
@@ -192,14 +192,16 @@ class NotebookTable(QTableView):
         self.play_clicked.emit(row)
 
 class NotebookTableModel(QAbstractTableModel):
-    headers = ['file?', 'note', 'name', 'fname', 'actions']
+    headers = ['file?', 'note', 'language', 'name', 'fname']
 
     def __init__(self):
         super(NotebookTableModel, self).__init__()
+        self.notebook_file = None
         self.notebook = None
     
-    def setNotebook(self, notebook):
-        self.notebook = notebook
+    def setNotebookFile(self, notebook_file):
+        self.notebook_file = notebook_file
+        self.notebook = self.notebook_file.notebook()
 
     def rowCount(self, parent=None):
         if self.notebook:
@@ -208,7 +210,7 @@ class NotebookTableModel(QAbstractTableModel):
             return 0
 
     def columnCount(self, parent=None):
-        return 4
+        return 5
 
     def data(self, index, role):
         if not index.isValid():
@@ -225,11 +227,11 @@ class NotebookTableModel(QAbstractTableModel):
                 elif index.column() == 1:
                     return pacenote.note()
                 elif index.column() == 2:
-                    return pacenote.name()
+                    return pacenote.language()
                 elif index.column() == 3:
+                    return pacenote.name()
+                elif index.column() == 4:
                     return pacenote.note_basename()
-                # elif index.column() == 4:
-                    # return "foo"
             else:
                 return None
 

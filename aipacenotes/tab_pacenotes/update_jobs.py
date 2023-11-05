@@ -41,17 +41,23 @@ class UpdateJob:
         # self._updated_at = time.time()
         self.update_ago_cache()
 
-        notebook = self.pacenote.notebook
-        response = aip_client.post_create_pacenotes_audio(
-            self.pacenote.note(),
-            self.store.settings_manager.voice_config(notebook.voice()),
-        )
+        voice = self.pacenote.voice()
+        voice_config = self.store.settings_manager.voice_config(voice)
 
-        if response.status_code == 200:
-            self.pacenote.write_file(response.content)
-            self._status = UPDATE_JOB_STATUS_SUCCESS
+        if voice_config:
+            # notebook = self.pacenote.notebook
+            response = aip_client.post_create_pacenotes_audio(
+                self.pacenote.note(),
+                voice_config,
+            )
+
+            if response.status_code == 200:
+                self.pacenote.write_file(response.content)
+                self._status = UPDATE_JOB_STATUS_SUCCESS
+            else:
+                self._status = f'{UPDATE_JOB_STATUS_ERROR} {response.status_code}'
         else:
-            self._status = f'{UPDATE_JOB_STATUS_ERROR} {response.status_code}'
+            self._status = f'{UPDATE_JOB_STATUS_ERROR} unknown voice: "{voice}"'
 
         self._updated_at = time.time()
         self.update_ago_cache()

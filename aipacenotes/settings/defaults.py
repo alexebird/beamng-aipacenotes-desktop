@@ -9,6 +9,6 @@ default_settings = {
     'settings_path_user': '$settings_dir/settings.json',
     'temp_dir': '$beam_user_home/temp/aipacenotes',
     'transcription_txt': '$settings_dir/transcription.txt',
-    'voices_path_mod': '$unpacked_mod_dir/settings/aipacenotes/voices.json',
-    'voices_path_user': '$settings_dir/voices.json',
+    'voices_path_mod': '$unpacked_mod_dir/settings/aipacenotes/default.voices.json',
+    'voices_path_user': '$settings_dir/user.voices.json',
 }

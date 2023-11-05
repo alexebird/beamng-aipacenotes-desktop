@@ -74,14 +74,18 @@ class SettingsManager():
 
         return output_string
 
-    def detect_voices_fname(self):
+    def detect_voices_fnames(self):
+        voices_fname_mod = self.settings['voices_path_mod']
         voices_fname_user = self.settings['voices_path_user']
+        fnames = []
+
+        if os.path.isfile(voices_fname_mod):
+            fnames.append(voices_fname_mod)
 
         if os.path.isfile(voices_fname_user):
-            return voices_fname_user
-        else:
-            voices_fname_mod = self.settings['voices_path_mod']
-            return voices_fname_mod
+            fnames.append(voices_fname_user)
+        
+        return fnames
     
     def get_pacenotes_search_paths(self):
         return self.settings['pacenotes_search_paths']
@@ -138,12 +142,14 @@ class SettingsManager():
         self.load_voices()
 
     def load_voices(self):
-        fname = self.detect_voices_fname()
-        if os.path.isfile(fname):
+        fnames = self.detect_voices_fnames()
+        self.voices = {}
+
+        for fname in fnames:
             with open(fname, 'r') as file:
-                self.voices = json.load(file)
-        else:
-            print(f"no voice file detected at {fname}")
+                voices_data = json.load(file)
+                for k,v in voices_data.items():
+                    self.voices[k] = v
                 
         print(f"voices={self.voices}")
     
@@ -151,4 +157,5 @@ class SettingsManager():
         if voice in self.voices:
             return self.voices[voice]
         else:
-            raise ValueError(f"voice 'voice' not found in voices.json")
+            # raise ValueError(f"voice '{voice}' not found in any *.voices.json file")
+            return None

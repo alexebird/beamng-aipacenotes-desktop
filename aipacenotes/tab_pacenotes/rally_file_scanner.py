@@ -1,7 +1,7 @@
 import pathlib
 import logging
 
-from .rally_file import RallyFile
+from .rally_file import NotebookFile
 
 class SearchPath:
     def __init__(self, fname):
@@ -9,13 +9,15 @@ class SearchPath:
         self.rally_files = []
 
     def __str__(self):
+        if not self.fname.endswith('/'):
+            return self.fname + '/'
         return self.fname
 
     def file_explorer_path(self):
         return self.fname
 
 class RallyFileScanner:
-    pattern =  '*.rally.json'
+    pattern =  '*.notebook.json'
 
     def __init__(self, settings_manager):
         self.settings_manager = settings_manager
@@ -30,7 +32,7 @@ class RallyFileScanner:
             matches = pathlib.Path(search_path).rglob(self.pattern)
 
             for match in matches:
-                rally = RallyFile(match)
+                rally = NotebookFile(match)
                 rally.load()
                 sp.rally_files.append(rally)
             

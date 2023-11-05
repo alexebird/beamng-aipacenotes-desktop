@@ -6,6 +6,9 @@ USAGE
 
 1. open a windows command prompt terminal
 2. cd to the repo
+```
+cd C:\Users\bird\Desktop\beam-bird\gh_repos\beamng-aipacenotes-desktop
+```
 3. activate virtualenv. run:
 
     ```

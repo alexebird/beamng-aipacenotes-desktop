@@ -1,4 +1,5 @@
 import json
+import copy
 import pathlib
 import os
 import re
@@ -19,11 +20,20 @@ class Pacenote:
     def name(self):
         return self.data['name']
     
+    def language(self):
+        return self.data['language']
+    
     def oldId(self):
         return self.data['oldId']
     
     def note(self):
         return self.data['note']
+    
+    def codriver(self):
+        return self.data['codriver']
+    
+    def voice(self):
+        return self.codriver()['voice']
 
     def note_hash(self):
         hash_value = 0
@@ -49,9 +59,10 @@ class Pacenote:
             f.write(data)
 
 class Notebook:
-    def __init__(self, rally_file, data):
-        self.rally_file = rally_file
+    def __init__(self, notebook_file, data):
+        self.notebook_file = notebook_file
         self.data = data
+        self._pacenotes = None
 
     def __str__(self):
         return self.name()
@@ -61,9 +72,6 @@ class Notebook:
     
     def name(self):
         return self.data['name']
-    
-    def voice(self):
-        return self.data['voice']
 
     def clean_name(self):
         s = self.name()
@@ -71,11 +79,35 @@ class Notebook:
         s = re.sub(r'_+', '_', s)            # Replace multiple consecutive '_' with a single '_'
         return s
     
-    def pacenotes(self):
-        return [Pacenote(self, e) for e in self.data['pacenotes']]
+    def pacenotes(self, use_cache=True):
+        if not use_cache:
+            self._pacenotes = None
+
+        if self._pacenotes:
+            return self._pacenotes
+        
+        codrivers = self.data['codrivers']
+
+        for codriver_data in codrivers:
+            pacenotes = []
+            for pacenote_data in self.data['pacenotes']:
+                # for each note language, make a copy of the whole note data.
+                for lang,note in pacenote_data['notes'].items():
+                    pn_data_copy = copy.deepcopy(pacenote_data)
+                    pn_data_copy['note'] = note
+                    pn_data_copy['language'] = lang
+                    pn_data_copy['codriver'] = copy.deepcopy(codriver_data)
+                    pacenote = Pacenote(self, pn_data_copy)
+                    pacenotes.append(pacenote)
+        
+        self._pacenotes = pacenotes
+
+        return self._pacenotes
+
+        # return [Pacenote(self, e) for e in self.data['pacenotes']]
     
     def pacenotes_dir(self):
-        return aipacenotes.util.normalize_path(os.path.join(self.rally_file.pacenotes_dir(), self.clean_name()))
+        return aipacenotes.util.normalize_path(os.path.join(self.notebook_file.pacenotes_dir(), self.clean_name()))
     
     def ensure_pacenotes_dir(self):
         pathlib.Path(self.pacenotes_dir()).mkdir(parents=False, exist_ok=True)
@@ -83,20 +115,21 @@ class Notebook:
     def file_explorer_path(self):
         return self.pacenotes_dir()
 
-class RallyFile:
-    pacenotes_root_name = 'pacenotes'
+class NotebookFile:
+    # pacenotes_root_name = 'aipacenotes/notebooks'
 
     def __init__(self, fname):
         self.fname = aipacenotes.util.normalize_path(fname)
 
     def __str__(self):
-        return aipacenotes.util.normalize_path(os.path.join(self.mission_id(), self.basename()))
+        # return aipacenotes.util.normalize_path(os.path.join(self.mission_id(), self.basename()))
+        return aipacenotes.util.normalize_path(self.fname)
     
     def dirname(self):
         return aipacenotes.util.normalize_path(os.path.dirname(self.fname))
 
     def pacenotes_dir(self):
-        return aipacenotes.util.normalize_path(os.path.join(os.path.dirname(self.fname), self.pacenotes_root_name))
+        return aipacenotes.util.normalize_path(os.path.join(os.path.dirname(self.fname)))
     
     def ensure_pacenotes_dir(self):
         pathlib.Path(self.pacenotes_dir()).mkdir(parents=False, exist_ok=True)
@@ -111,8 +144,8 @@ class RallyFile:
         with open(self.fname) as f:
             self.data = json.load(f)
     
-    def notebooks(self):
-        return [Notebook(self, e) for e in self.data['notebooks']]
+    def notebook(self):
+        return Notebook(self, self.data)
 
     def mission_id(self):
         pattern = r"missions/([^/]+/[^/]+/[^/]+)"

@@ -13,10 +13,10 @@ from PyQt6.QtCore import (
 )
 
 from .rally_file_scanner import RallyFileScanner, SearchPath
-from .rally_file import Notebook, RallyFile
+from .rally_file import Notebook, NotebookFile
 
 class PacenotesTreeWidget(QTreeWidget):
-    notebookSelectionChanged = pyqtSignal(Notebook)
+    notebookSelectionChanged = pyqtSignal(NotebookFile)
 
     def __init__(self, settings_manager):
         super().__init__()
@@ -30,16 +30,22 @@ class PacenotesTreeWidget(QTreeWidget):
         rally_scanner.scan()
         root_items = []
         for search_path in rally_scanner.search_paths:
-            item_search_path = QTreeWidgetItem([str(search_path.fname)])
+            item_search_path = QTreeWidgetItem([str(search_path)])
             item_search_path.setData(0, Qt.ItemDataRole.UserRole, search_path)
+
             for rally_file in search_path.rally_files:
-                child_rally_file = QTreeWidgetItem([str(rally_file)])
+                item_text = str(rally_file).removeprefix(str(search_path))
+                # item_text = item_text.removeprefix('/')
+
+                child_rally_file = QTreeWidgetItem([item_text])
                 child_rally_file.setData(0, Qt.ItemDataRole.UserRole, rally_file)
                 item_search_path.addChild(child_rally_file)
-                for notebook in rally_file.notebooks():
-                    child_notebook = QTreeWidgetItem([notebook.name()])
-                    child_notebook.setData(0, Qt.ItemDataRole.UserRole, notebook)
-                    child_rally_file.addChild(child_notebook)
+
+                # for notebook in rally_file.notebooks():
+                    # child_notebook = QTreeWidgetItem([notebook.name()])
+                    # child_notebook.setData(0, Qt.ItemDataRole.UserRole, notebook)
+                    # child_rally_file.addChild(child_notebook)
+
             root_items.append(item_search_path)
 
         # self.clear()
@@ -59,24 +65,27 @@ class PacenotesTreeWidget(QTreeWidget):
 
     def on_tree_item_clicked(self, current_item):
         item_data = current_item.data(0, Qt.ItemDataRole.UserRole)
-        notebook_item = None
-        # notebook = None
-        if isinstance(item_data, RallyFile):
-            if current_item.childCount() > 0:
-                notebook_item = current_item.child(0)
-                self.setCurrentItem(notebook_item)
-        elif isinstance(item_data, SearchPath):
-            if current_item.childCount() > 0:
-                child = current_item.child(0)
-                if child.childCount() > 0:
-                    notebook_item = child.child(0)
-                    self.setCurrentItem(notebook_item)
-        elif isinstance(item_data, Notebook):
-            notebook_item = current_item
+        if isinstance(item_data, NotebookFile):
+            # if current_item.childCount() > 0:
+            #     notebook_item = current_item.child(0)
+            #     self.setCurrentItem(notebook_item)
+            # self.setCurrentItem(item_data)
+            # notebook_item = item_data
+            notebook_file = item_data
+            self.notebookSelectionChanged.emit(notebook_file)
 
-        notebook = notebook_item.data(0, Qt.ItemDataRole.UserRole)
-        if notebook:
-            self.notebookSelectionChanged.emit(notebook)
+        # elif isinstance(item_data, SearchPath):
+        #     if current_item.childCount() > 0:
+        #         child = current_item.child(0)
+        #         if child.childCount() > 0:
+        #             notebook_item = child.child(0)
+        #             self.setCurrentItem(notebook_item)
+        # elif isinstance(item_data, Notebook):
+            # notebook_item = current_item
+
+        # notebook = notebook_item.data(0, Qt.ItemDataRole.UserRole)
+        # if notebook:
+            # self.notebookSelectionChanged.emit(notebook)
 
     def contextMenuEvent(self, event):
         item = self.itemAt(event.pos())

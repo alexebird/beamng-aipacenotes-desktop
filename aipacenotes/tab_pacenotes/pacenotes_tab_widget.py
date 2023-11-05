@@ -30,13 +30,10 @@ from aipacenotes.concurrency import TaskManager, TimerThread
 from aipacenotes import client as aip_client
 from .pacenotes_table import NotebookTable, NotebookTableModel
 from .pacenotes_tree_widget import PacenotesTreeWidget
-from .rally_file import Notebook, RallyFile
+from .rally_file import Notebook, NotebookFile
 from .rally_file_scanner import SearchPath
 from .update_jobs import UpdateJobsStore, UpdateJob
 from .update_jobs_table import UpdateJobsTable, UpdateJobsTableModel
-
-# pacenotes_file_pattern = '*.pacenotes.json'
-# rally_file_pattern = '*.rally.json'
 
 # class Benchmark:
 #     def __init__(self):
@@ -91,7 +88,8 @@ class PacenotesTabWidget(QWidget):
         self.notebook_table.setColumnWidth(0, 50)
         self.notebook_table.setColumnWidth(1, 400)
         self.notebook_table.setColumnWidth(2, 150)
-        self.notebook_table.setColumnWidth(3, 250)
+        self.notebook_table.setColumnWidth(3, 150)
+        self.notebook_table.setColumnWidth(4, 250)
         self.notebook_table.play_clicked.connect(self.play_audio)
 
         self.table_controls = QWidget()
@@ -137,11 +135,11 @@ class PacenotesTabWidget(QWidget):
         self.splitter.setSizes([splitter_left_width, splitter_right_width])
 
         self.tree.populate()
-        self.tree.select_default()
+        # self.tree.select_default()
         self.timer_thread.start()
     
-    def on_tree_notebook_selection_changed(self, notebook):
-        self.notebook_table_model.setNotebook(notebook)
+    def on_tree_notebook_selection_changed(self, notebook_file):
+        self.notebook_table_model.setNotebookFile(notebook_file)
         self.notebook_table_model.layoutChanged.emit()
 
     def play_audio(self, row):
@@ -151,21 +149,27 @@ class PacenotesTabWidget(QWidget):
             sd.play(data, samplerate)
             sd.wait()
 
-        notebook = self.notebook_table_model.notebook
+        notebook_file = self.notebook_table_model.notebook_file
+        notebook = notebook_file.notebook()
         if notebook:
             pacenote = notebook.pacenotes()[row]
             if pacenote.note_file_exists():
                 self.task_manager.submit(_play, pacenote.note_abs_path())
 
     def on_btn_refresh_notebook_pressed(self):
-        self.task_manager.submit(self.refresh_pacenotes)
+        def _special_button_refresh():
+            self.tree.clear()
+            self.tree.populate()
+            self.refresh_pacenotes()
+        self.task_manager.submit(_special_button_refresh)
     
     def refresh_pacenotes(self):
-        self.tree.populate()
-
-        notebook = self.notebook_table_model.notebook
-        if not notebook:
+        notebook_file = self.notebook_table_model.notebook_file
+        if not notebook_file:
             return
+
+        notebook_file.load()
+        notebook = notebook_file.notebook()
         
         for pacenote in notebook.pacenotes():
             if pacenote.needs_update():
@@ -181,6 +185,8 @@ class PacenotesTabWidget(QWidget):
         self.update_jobs_store.update_job_time_agos()
         self.update_jobs_store.prune()
         self.jobs_model.layoutChanged.emit()
+        self.notebook_table_model.setNotebookFile(notebook_file)
+        self.notebook_table_model.layoutChanged.emit()
         self.task_manager.gc_finished()
 
     def on_job_run_finished(self, job):
@@ -188,6 +194,7 @@ class PacenotesTabWidget(QWidget):
         self.notebook_table_model.layoutChanged.emit()
 
     def on_timer_timeout(self):
+        # pass
         self.task_manager.submit(self.refresh_pacenotes)
 
 
