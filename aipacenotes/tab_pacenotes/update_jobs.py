@@ -4,7 +4,7 @@ from .rally_file import Pacenote
 from aipacenotes import client as aip_client
 
 def pacenote_job_id(pacenote):
-    return pacenote.name()
+    return f'{pacenote.notebook.name()}_{pacenote.codriver_name()}_{pacenote.name()}'
 
 UPDATE_JOB_STATUS_UPDATING = 'updating'
 UPDATE_JOB_STATUS_SUCCESS = 'success'
@@ -42,7 +42,13 @@ class UpdateJob:
         self.update_ago_cache()
 
         voice = self.pacenote.voice()
-        voice_config = self.store.settings_manager.voice_config(voice)
+        vc_settings = self.store.settings_manager.voice_config(voice)
+        vc_mission = self.pacenote.notebook.notebook_file.mission_voice_config(voice)
+
+        voice_config = vc_settings
+        # if there is a mission voice file, prioritize that over the settings files.
+        if vc_mission:
+            voice_config = vc_mission
 
         if voice_config:
             # notebook = self.pacenote.notebook
@@ -131,7 +137,8 @@ class UpdateJobsStore:
     
     def clear_lock(self, pacenote):
         id = pacenote_job_id(pacenote)
-        self.pacenote_ids_error[id] = self.pacenote_ids_lock[id]
+        if id in self.pacenote_ids_lock:
+            self.pacenote_ids_error[id] = self.pacenote_ids_lock[id]
         self.pacenote_ids_lock.pop(id, None)
     
     def has_job_for_pacenote(self, pacenote):

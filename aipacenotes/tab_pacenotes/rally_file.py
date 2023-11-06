@@ -52,7 +52,9 @@ class Pacenote:
 
     def pacenotes_dir(self):
         self.notebook.ensure_pacenotes_dir()
-        the_dir = aipacenotes.util.normalize_path(os.path.join(self.notebook.pacenotes_dir(), self.language(), self.codriver_name()))
+
+        clean_codriver_name = aipacenotes.util.clean_name_for_path(self.codriver_name())
+        the_dir = aipacenotes.util.normalize_path(os.path.join(self.notebook.pacenotes_dir(), clean_codriver_name))
         pathlib.Path(the_dir).mkdir(parents=True, exist_ok=True)
         return the_dir
     
@@ -83,10 +85,7 @@ class Notebook:
         return self.data['name']
 
     def clean_name(self):
-        s = self.name()
-        s = re.sub(r'[^a-zA-Z0-9]', '_', s)  # Replace everything but letters and numbers with '_'
-        s = re.sub(r'_+', '_', s)            # Replace multiple consecutive '_' with a single '_'
-        return s
+        return aipacenotes.util.clean_name_for_path(self.name())
     
     def pacenotes(self, use_cache=True):
         if not use_cache:
@@ -120,6 +119,7 @@ class Notebook:
         return aipacenotes.util.normalize_path(os.path.join(self.notebook_file.pacenotes_dir(), self.clean_name()))
     
     def ensure_pacenotes_dir(self):
+        self.notebook_file.ensure_pacenotes_dir()
         pathlib.Path(self.pacenotes_dir()).mkdir(parents=False, exist_ok=True)
 
     def file_explorer_path(self):
@@ -131,6 +131,7 @@ class NotebookFile:
     def __init__(self, fname):
         self.fname = aipacenotes.util.normalize_path(fname)
         self.ensure_pacenotes_dir()
+        self._mission_voices = None
 
     def __str__(self):
         # return aipacenotes.util.normalize_path(os.path.join(self.mission_id(), self.basename()))
@@ -140,7 +141,25 @@ class NotebookFile:
         return aipacenotes.util.normalize_path(os.path.dirname(self.fname))
 
     def pacenotes_dir(self):
-        return aipacenotes.util.normalize_path(os.path.join(os.path.dirname(self.fname), 'generated_pacenotes'))
+        return aipacenotes.util.normalize_path(os.path.join(self.dirname(), 'generated_pacenotes'))
+
+    def aipacenotes_dir(self):
+        return aipacenotes.util.normalize_path(os.path.join(self.dirname(), '..'))
+    
+    def load_mission_voices(self):
+        voices_fname = os.path.join(self.dirname(), '..', 'mission.voices.json')
+        self._mission_voices = {}
+
+        if os.path.isfile(voices_fname):
+            with open(voices_fname, 'r') as f:
+                voices_data = json.load(f)
+                for k,v in voices_data.items():
+                    self._mission_voices[k] = v
+    
+    def mission_voice_config(self, voice):
+        if not self._mission_voices:
+            self.load_mission_voices()
+        return self._mission_voices.get(voice, None)
     
     def ensure_pacenotes_dir(self):
         pathlib.Path(self.pacenotes_dir()).mkdir(parents=False, exist_ok=True)

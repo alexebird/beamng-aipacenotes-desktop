@@ -41,6 +41,8 @@ def set_up_logger():
 
         hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
         filename = '{}/AppData/Local/BeamNG.drive/0.30/aipacenotes-crash-{}.log'.format(hom, timestamp_str)
+        print(f"log file: {filename}")
+        print(f"Check that file for errors if you encounter a problem.")
         logging.basicConfig(filename=filename, level=logging.DEBUG)
         sys.excepthook = exception_hook
 

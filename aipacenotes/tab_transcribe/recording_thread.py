@@ -53,7 +53,7 @@ class RecordingThread(QThread):
         if os.environ.get('AIP_DEV', 'f') == 't':
             self.tmpdir = 'tmp\\audio'
         else:
-            self.tmpdir = self.settings_manager.get_tmpdir()
+            self.tmpdir = self.settings_manager.get_tempdir()
 
         for filename in os.listdir(self.tmpdir):
             file_path = os.path.join(self.tmpdir, filename)

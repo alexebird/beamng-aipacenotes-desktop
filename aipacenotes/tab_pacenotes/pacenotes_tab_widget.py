@@ -118,7 +118,7 @@ class PacenotesTabWidget(QWidget):
         jobs_table.setColumnWidth(2, 400)
         jobs_table.setColumnWidth(3, 250)
         jobs_table.setColumnWidth(4, 150)
-        jobs_table.setColumnWidth(5, 150)
+        jobs_table.setColumnWidth(5, 300)
 
         self.splitter_v = QSplitter(Qt.Orientation.Vertical)
         self.splitter_v.addWidget(self.splitter)

@@ -154,8 +154,9 @@ class SettingsManager():
         print(f"voices={self.voices}")
     
     def voice_config(self, voice):
-        if voice in self.voices:
-            return self.voices[voice]
-        else:
-            # raise ValueError(f"voice '{voice}' not found in any *.voices.json file")
-            return None
+        return self.voices.get(voice, None)
+        # if voice in self.voices:
+        #     return self.voices[voice]
+        # else:
+        #     # raise ValueError(f"voice '{voice}' not found in any *.voices.json file")
+        #     return None
