@@ -141,10 +141,11 @@ class TranscribeTabWidget(QWidget):
 
         self.device_combo = QComboBox()
         self.device_combo.setFixedWidth(400)
+        devices = []
         try:
             devices = [f'[{d["index"]}] {d["name"]}' for d in self.recording_thread.get_default_audio_device()]
         except sd.PortAudioError as e:
-            print("startup error in RecordingThread")
+            print("PortAudioError getting default audio device in TranscribeTabWidget startup")
             self.startup_error = True
         self.device_combo.addItems(devices)
         button_layout.addWidget(self.device_combo)

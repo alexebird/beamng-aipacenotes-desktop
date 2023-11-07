@@ -32,7 +32,7 @@ class RecordingThread(QThread):
         try:
             self.device = self.get_default_audio_device()
         except sd.PortAudioError as e:
-            print("startup error in RecordingThread")
+            print("PortAudioError getting default audio device in RecordingThread startup")
             self.startup_error = True
 
         self.samplerate = 16000
@@ -121,7 +121,7 @@ class RecordingThread(QThread):
     
     def run(self):
         if self.startup_error:
-            logging.error("startup_error is true, so not starting main loop")
+            logging.error("RecordingThread.startup_error is true, so not starting main loop")
             return
 
         try:
