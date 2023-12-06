@@ -107,12 +107,12 @@ class TranscriptionStoreTableModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             row = self._data.transcripts[index.row()]
             return row.fieldAt(index.column())
-    
+
     def headerData(self, section, orientation, role):
         if role == Qt.ItemDataRole.DisplayRole:
             if orientation == Qt.Orientation.Horizontal:
                 return Transcript.table_headers[section]
-    
+
 class TranscribeTabWidget(QWidget):
     transcribe_done = pyqtSignal()
 
@@ -126,12 +126,12 @@ class TranscribeTabWidget(QWidget):
         self.network_tab.on_endpoint_recording_stop.connect(self.on_endpoint_recording_stop)
         self.network_tab.on_endpoint_recording_cut.connect(self.on_endpoint_recording_cut)
 
-        self.fname_transcription = self.settings_manager.get_transcription_txt_fname()
+        self.fname_transcripts = self.settings_manager.get_transcripts_fname()
         self.recording_thread = RecordingThread(self.settings_manager)
         self.recording_thread.transcript_created.connect(self.on_transcript_created)
         self.recording_thread.update_status.connect(self.update_status)
         self.recording_thread.audio_signal_detected.connect(self.audio_signal_detected)
-    
+
         self.transcribe_done.connect(self.on_transcribe_done)
 
         layout = QVBoxLayout()
@@ -197,7 +197,7 @@ class TranscribeTabWidget(QWidget):
         self.table = CustomTable()
         self.table.verticalHeader().setVisible(False)
 
-        header = self.table.horizontalHeader()       
+        header = self.table.horizontalHeader()
         # header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         # header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         stylesheet = """
@@ -210,7 +210,7 @@ class TranscribeTabWidget(QWidget):
         """
         header.setStyleSheet(stylesheet)
 
-        self.transcript_store = TranscriptStore()
+        self.transcript_store = TranscriptStore(self.fname_transcripts)
         self.table_model = TranscriptionStoreTableModel(self.transcript_store)
         self.table.setModel(self.table_model)
         self.table.setColumnWidth(0, 400)
@@ -235,7 +235,7 @@ class TranscribeTabWidget(QWidget):
         # tt = Transcript("test", 'tmp\\out_test.wav', {})
         # tt.txt = "test"
         # self.transcript_store.add(tt)
-        # self.table_model.layoutChanged.emit()
+        self.table_model.layoutChanged.emit()
 
         # self.task_manager.get_future_count()
         # self.task_manager.gc_finished()
@@ -251,23 +251,24 @@ class TranscribeTabWidget(QWidget):
             sd.wait()
 
         self.task_manager.submit(_play, row)
-    
+
     def clear_transcription(self):
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Icon.Question)
         msgBox.setText("Are you sure you want to clear all data?")
         msgBox.setWindowTitle("Confirmation")
         msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        
+
         returnValue = msgBox.exec()
         if returnValue == QMessageBox.StandardButton.Yes:
             self.transcript_store.clear()
-            with open(self.fname_transcription, 'w') as f:
-                f.truncate(0)
+            # with open(self.fname_transcripts, 'w') as f:
+                # f.truncate(0)
+            self.write_transcription()
             self.table_model.layoutChanged.emit()
 
     def write_transcription(self):
-        self.transcript_store.write_to_file(self.fname_transcription)
+        self.transcript_store.write_to_file()
 
     def start_recording(self, vehicle_pos=None):
         # if self.recording_thread is None:
@@ -286,18 +287,18 @@ class TranscribeTabWidget(QWidget):
         if not src:
             src = 'stop_recording'
         self.recording_thread.stop_recording(src, vehicle_pos)
-    
+
     def cut_recording(self, vehicle_pos=None):
         self.stop_recording('cut_recording', vehicle_pos)
         # dont send the vehicle_pos because it will be really close to stop_recording's vehicle_pos.
         self.start_recording()
-    
+
     # def update_transcription(self):
-        # if os.path.isfile(self.fname_transcription):
-            # with open(self.fname_transcription, 'r') as f:
+        # if os.path.isfile(self.fname_transcripts):
+            # with open(self.fname_transcripts, 'r') as f:
                 # self.transcription_output.setText(f.read())
         # else:
-            # logging.warn(f"couldnt find transcription.txt at: {self.fname_transcription}")
+            # logging.warn(f"couldnt find transcription.txt at: {self.fname_transcripts}")
 
     # def recording_file_created(self, src, fname, file_create_time, vehicle_pos):
     #     # self.transcription_output.append(f"wrote recording to file: {fname}")
@@ -310,11 +311,11 @@ class TranscribeTabWidget(QWidget):
         # self.refresh_table.emit()
         self.table_model.layoutChanged.emit()
         self.task_manager.submit(self.run_transcribe, transcript)
-    
+
     def run_transcribe(self, transcript):
         transcript.transcribe()
         self.transcribe_done.emit()
-    
+
     # def on_refresh_table(self):
         # from PyQt6.QtCore import QThread
         # print("Current QThread:", QThread.currentThread())
@@ -333,29 +334,29 @@ class TranscribeTabWidget(QWidget):
     #         self.append_vehicle_pos(vehicle_pos, transcript + " || ")
     #     else:
     #         self.append_transcript(transcript)
-        
+
     #     self.update_transcription_txt.emit()
-    
+
     def update_status(self, text):
         self.status_label.setText(f"Status: {text}")
-    
+
     def on_endpoint_recording_start(self, vehicle_pos):
         print("TranscribeTab recording start")
         self.start_recording(vehicle_pos)
-    
+
     def on_endpoint_recording_stop(self, vehicle_pos):
         print("TranscribeTab recording stop")
         self.stop_recording('stop_recording', vehicle_pos)
-    
+
     def on_endpoint_recording_cut(self, vehicle_pos):
         print("TranscribeTab recording cut")
         self.cut_recording(vehicle_pos)
 
     # def append_transcript(self, text):
     #     if isinstance(text, str):
-    #         with open(self.fname_transcription, 'a') as f:
+    #         with open(self.fname_transcripts, 'a') as f:
     #             f.write(text + '\n')
-    
+
     # def append_vehicle_pos(self, vehicle_pos, prefix=""):
     #     self.append_transcript(prefix + json.dumps(vehicle_pos))
 

@@ -20,7 +20,7 @@ def home_dir():
     hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
     hom = aipacenotes.util.normalize_path(hom)
     return hom
- 
+
 def expand_windows_symlinks(path):
     shell = win32com.client.Dispatch("WScript.Shell")
     parts = []
@@ -55,10 +55,10 @@ class SettingsManager():
         self.status_bar = status_bar
         self.settings = self.expand_default_settings()
         self.voices = None
-    
+
     def update_status_left(self, txt):
         self.status_bar.updateLeftLabel.emit(txt)
-    
+
     def update_status_right(self, txt):
         self.status_bar.updateRightLabel.emit(txt)
 
@@ -84,20 +84,20 @@ class SettingsManager():
 
         if os.path.isfile(voices_fname_user):
             fnames.append(voices_fname_user)
-        
+
         return fnames
-    
+
     def get_pacenotes_search_paths(self):
         return self.settings['pacenotes_search_paths']
-    
-    def get_transcription_txt_fname(self):
-        return os.path.join(self.get_settings_dir(), self.settings['transcription_txt'])
-    
+
+    def get_transcripts_fname(self):
+        return os.path.join(self.get_settings_dir(), self.settings['transcripts_fname'])
+
     def get_settings_dir(self):
         val = self.settings['settings_dir']
         os.makedirs(val, exist_ok=True)
         return  val
-    
+
     def get_tempdir(self):
         val = self.settings['temp_dir']
         os.makedirs(val, exist_ok=True)
@@ -112,7 +112,7 @@ class SettingsManager():
         fname = os.path.normpath(fname)
         fname = aipacenotes.util.normalize_path(fname)
         return fname
-    
+
     def expand_default_settings(self):
         settings = copy.deepcopy(defaults.default_settings)
         settings['HOME'] = home_dir()
@@ -136,7 +136,7 @@ class SettingsManager():
             with open(user_settings, 'r') as file:
                 data = json.load(file)
             self.settings = deep_merge(self.settings, data)
-        
+
         print(f"settings={self.settings}")
 
         self.load_voices()
@@ -150,9 +150,9 @@ class SettingsManager():
                 voices_data = json.load(file)
                 for k,v in voices_data.items():
                     self.voices[k] = v
-                
+
         print(f"voices={self.voices}")
-    
+
     def voice_config(self, voice):
         return self.voices.get(voice, None)
         # if voice in self.voices:
