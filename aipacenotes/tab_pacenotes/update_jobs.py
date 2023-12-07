@@ -4,7 +4,8 @@ from .rally_file import Pacenote
 from aipacenotes import client as aip_client
 
 def pacenote_job_id(pacenote):
-    return f'{pacenote.notebook.name()}_{pacenote.codriver_name()}_{pacenote.name()}'
+    mission_id = pacenote.notebook.notebook_file.mission_id()
+    return f'{mission_id}_{pacenote.notebook.name()}_{pacenote.codriver_name()}_{pacenote.name()}'
 
 UPDATE_JOB_STATUS_UPDATING = 'updating'
 UPDATE_JOB_STATUS_SUCCESS = 'success'
@@ -18,20 +19,20 @@ class UpdateJob:
         self._created_at = time.time()
         self._updated_at = self._created_at
         self._cached_updated_at_str = "0s ago"
-    
+
     def update_ago_cache(self):
         seconds = time.time() - self._updated_at
         if seconds < 60:
             self._cached_updated_at_str = f"{int(seconds)}s ago"
         else:
             self._cached_updated_at_str = f"{round(seconds / 60.0)}m ago"
-    
+
     def created_at(self):
         return self._created_at
-    
+
     def updated_at(self):
         return self._updated_at
-    
+
     def status(self):
         return self._status
 
@@ -51,7 +52,6 @@ class UpdateJob:
             voice_config = vc_mission
 
         if voice_config:
-            # notebook = self.pacenote.notebook
             response = aip_client.post_create_pacenotes_audio(
                 self.pacenote.note(),
                 voice_config,
@@ -61,10 +61,9 @@ class UpdateJob:
                 self.pacenote.write_file(response.content)
                 self._status = UPDATE_JOB_STATUS_SUCCESS
             else:
-                # self._status = f'{UPDATE_JOB_STATUS_ERROR} {response.status_code}'
                 self._status = UPDATE_JOB_STATUS_ERROR
+                self.store.set_error(self)
         else:
-            # self._status = f'{UPDATE_JOB_STATUS_ERROR} unknown voice: "{voice}'
             self._status = UPDATE_JOB_STATUS_ERROR
 
         self._updated_at = time.time()
@@ -72,7 +71,7 @@ class UpdateJob:
 
         self.store.sort()
         self.store.prune()
-        self.store.clear_lock(self.pacenote)
+        self.store.clear_lock(self)
         done_signal.emit(self)
 
 class UpdateJobsStore:
@@ -84,11 +83,11 @@ class UpdateJobsStore:
 
     def __len__(self):
         return len(self.jobs)
-    
+
     def update_job_time_agos(self):
         for job in self.jobs:
             job.update_ago_cache()
-    
+
     def sort(self):
         status_order = {
             UPDATE_JOB_STATUS_ERROR: 0,
@@ -99,48 +98,60 @@ class UpdateJobsStore:
         self.jobs.sort(
             key=lambda job: (status_order[job.status()], -job.updated_at())
         )
-    
+
     def prune(self):
-        two_minutes_ago = time.time() - 60*2
+        prune_threshold_sec = time.time() - 30
 
         def should_prune(job):
             is_success = job.status() == UPDATE_JOB_STATUS_SUCCESS
-            is_old = job.updated_at() < two_minutes_ago
-            return (is_success and is_old)
-        
+            is_error = job.status() == UPDATE_JOB_STATUS_ERROR
+            is_old = job.updated_at() < prune_threshold_sec
+            return ((is_error or is_success) and is_old)
+
         new_jobs = []
 
         for job in self.jobs:
             if should_prune(job):
-                self.clear_lock(job.pacenote)
+                self.clear_lock(job)
+                self.clear_error(job)
             else:
                 new_jobs.append(job)
 
-        # self.jobs[:] = [job for job in self.jobs if not should_prune(job)]
         self.jobs = new_jobs
-    
+
     def get(self, idx):
         return self.jobs[idx]
-    
+
     def add_job(self, pacenote):
         id = pacenote_job_id(pacenote)
 
         if self.has_job_for_pacenote(pacenote):
             return None
 
-        job = UpdateJob(self, pacenote) 
+        job = UpdateJob(self, pacenote)
 
         self.jobs.append(job)
         self.pacenote_ids_lock[id] = job
 
         return job
-    
-    def clear_lock(self, pacenote):
+
+    def set_error(self, job):
+        pacenote = job.pacenote
         id = pacenote_job_id(pacenote)
-        if id in self.pacenote_ids_lock:
-            self.pacenote_ids_error[id] = self.pacenote_ids_lock[id]
+        self.pacenote_ids_error[id] = job
+
+    def clear_lock(self, job):
+        pacenote = job.pacenote
+        id = pacenote_job_id(pacenote)
+        # if id in self.pacenote_ids_lock:
+            # self.pacenote_ids_error[id] = self.pacenote_ids_lock[id]
         self.pacenote_ids_lock.pop(id, None)
-    
+
+    def clear_error(self, job):
+        pacenote = job.pacenote
+        id = pacenote_job_id(pacenote)
+        self.pacenote_ids_error.pop(id, None)
+
     def has_job_for_pacenote(self, pacenote):
         id = pacenote_job_id(pacenote)
         if id in self.pacenote_ids_lock:
@@ -157,3 +168,13 @@ class UpdateJobsStore:
                 return False
         else:
             return False
+
+    def print(self):
+        print("UpdateJobsStore")
+        print("  pacenote_ids_lock")
+        for id in self.pacenote_ids_lock:
+            print(f"    - {id}")
+        print("  pacenote_ids_error")
+        for id in self.pacenote_ids_error:
+            print(f"    - {id}")
+        print("------------------------------------------------")

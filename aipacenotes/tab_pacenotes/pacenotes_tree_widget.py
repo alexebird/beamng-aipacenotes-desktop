@@ -9,11 +9,12 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import (
     Qt,
+    # QFileSystemWatcher,
     pyqtSignal,
 )
 
-from .rally_file_scanner import RallyFileScanner, SearchPath
-from .rally_file import Notebook, NotebookFile
+from .rally_file_scanner import RallyFileScanner
+from .rally_file import NotebookFile
 
 class PacenotesTreeWidget(QTreeWidget):
     notebookSelectionChanged = pyqtSignal(NotebookFile)
@@ -24,44 +25,45 @@ class PacenotesTreeWidget(QTreeWidget):
         self.setColumnCount(1)
         self.setHeaderLabels(["Pacenotes"])
         self.itemClicked.connect(self.on_tree_item_clicked)
+        # self.file_watcher = QFileSystemWatcher()
+        # self.file_watcher.fileChanged.connect(self.file_changed)
+
+    # def file_changed(self, fname):
+        # print(f"file changed: {fname}")
 
     def populate(self):
+        # self.file_watcher.removePaths(self.file_watcher.files())
+
         rally_scanner = RallyFileScanner(self.settings_manager)
         rally_scanner.scan()
+
         root_items = []
         for search_path in rally_scanner.search_paths:
             item_search_path = QTreeWidgetItem([str(search_path)])
             item_search_path.setData(0, Qt.ItemDataRole.UserRole, search_path)
+            root_items.append(item_search_path)
 
             for rally_file in search_path.rally_files:
+                # self.file_watcher.addPath(str(rally_file))
+
                 item_text = str(rally_file).removeprefix(str(search_path))
-                # item_text = item_text.removeprefix('/')
 
                 child_rally_file = QTreeWidgetItem([item_text])
                 child_rally_file.setData(0, Qt.ItemDataRole.UserRole, rally_file)
                 item_search_path.addChild(child_rally_file)
 
-                # for notebook in rally_file.notebooks():
-                    # child_notebook = QTreeWidgetItem([notebook.name()])
-                    # child_notebook.setData(0, Qt.ItemDataRole.UserRole, notebook)
-                    # child_rally_file.addChild(child_notebook)
-
-            root_items.append(item_search_path)
-
-        # self.clear()
         self.insertTopLevelItems(0, root_items)
-        self.expandAll()
 
-    def select_default(self):
-        first_item = self.topLevelItem(0)
-        if first_item:
-            if first_item.childCount() > 0:
-                child = first_item.child(0)
-                if child.childCount() > 0:
-                    notebook_item = child.child(0)
-                    self.setCurrentItem(notebook_item)
-                    notebook = notebook_item.data(0, Qt.ItemDataRole.UserRole)
-                    self.notebookSelectionChanged.emit(notebook)
+    # def select_default(self):
+    #     first_item = self.topLevelItem(0)
+    #     if first_item:
+    #         if first_item.childCount() > 0:
+    #             child = first_item.child(0)
+    #             if child.childCount() > 0:
+    #                 notebook_item = child.child(0)
+    #                 self.setCurrentItem(notebook_item)
+    #                 notebook = notebook_item.data(0, Qt.ItemDataRole.UserRole)
+    #                 self.notebookSelectionChanged.emit(notebook)
 
     def on_tree_item_clicked(self, current_item):
         item_data = current_item.data(0, Qt.ItemDataRole.UserRole)
@@ -104,7 +106,7 @@ class PacenotesTreeWidget(QTreeWidget):
             open_action.triggered.connect(fn)
 
             context_menu.exec(event.globalPos())
-    
+
     def open_file_explorer(self, file_path):
         if os.path.isfile(file_path):
             file_path = os.path.dirname(file_path)

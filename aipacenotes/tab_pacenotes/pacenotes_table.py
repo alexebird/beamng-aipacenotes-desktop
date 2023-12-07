@@ -150,7 +150,7 @@ class NotebookTable(QTableView):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showContextMenu)
 
-        header = self.horizontalHeader()       
+        header = self.horizontalHeader()
         # header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         # header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         stylesheet = """
@@ -167,7 +167,7 @@ class NotebookTable(QTableView):
 
         self.setItemDelegateForColumn(4, PlayButtonDelegate())
         self.itemDelegateForColumn(4).buttonClicked.connect(self.playClicked)
-    
+
     def showContextMenu(self, position):
         index = self.indexAt(position)
         row = index.row()
@@ -176,7 +176,7 @@ class NotebookTable(QTableView):
         menu = QMenu()
         menu.addAction("TODO - Copy audio file path", partial(self.context_menu_action_copy_audio_file_path, row))
         menu.addAction("TODO - Force re-generate audio file", partial(self.context_menu_action_force_regen, row))
-        
+
         menuSize = menu.sizeHint()
         globalPos.setY(globalPos.y() + int(menuSize.height()/2))
         menu.exec(globalPos)
@@ -198,10 +198,13 @@ class NotebookTableModel(QAbstractTableModel):
         super(NotebookTableModel, self).__init__()
         self.notebook_file = None
         self.notebook = None
-    
+
     def setNotebookFile(self, notebook_file):
         self.notebook_file = notebook_file
-        self.notebook = self.notebook_file.notebook()
+        if self.notebook_file is None:
+            self.notebook = None
+        else:
+            self.notebook = self.notebook_file.notebook()
 
     def rowCount(self, parent=None):
         if self.notebook:
@@ -243,7 +246,7 @@ class NotebookTableModel(QAbstractTableModel):
                         return QColor(Qt.GlobalColor.green)
                     else:
                         return QColor(Qt.GlobalColor.red)
-        
+
         if role == Qt.ItemDataRole.FontRole:
             if self.notebook:
                 pacenote = self.notebook.pacenotes()[index.row()]
@@ -257,9 +260,9 @@ class NotebookTableModel(QAbstractTableModel):
                 pacenote = self.notebook.pacenotes()[index.row()]
                 if index.column() == 0:
                     return Qt.AlignmentFlag.AlignCenter
-        
+
         return None
-    
+
     def headerData(self, section, orientation, role):
         if role == Qt.ItemDataRole.DisplayRole:
             if orientation == Qt.Orientation.Horizontal:

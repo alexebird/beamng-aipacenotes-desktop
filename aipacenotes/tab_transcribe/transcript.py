@@ -70,8 +70,12 @@ class TranscriptStore:
         self.load()
 
     def load(self):
-        with open(self.fname, 'r') as file:
-            data = json.load(file)
+        try:
+            with open(self.fname, 'r') as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            # If the file doesn't exist, initialize data with default content
+            data = {'transcripts': []}
 
         self.clear()
         for item in data["transcripts"]:
