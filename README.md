@@ -17,6 +17,7 @@ cd C:\Users\bird\Desktop\beam-bird\gh_repos\beamng-aipacenotes-desktop
 4. run app:
 
     ```
+    set AIP_DEV=t
     python app.py
     ```
 

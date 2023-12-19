@@ -1,6 +1,8 @@
 import os
 import re
 
+UNKNOWN_PLACEHOLDER = '[unknown]'
+
 def normalize_path(in_path):
     return os.path.normpath(in_path).replace("\\", "/")
 

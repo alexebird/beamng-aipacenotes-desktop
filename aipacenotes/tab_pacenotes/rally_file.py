@@ -53,7 +53,7 @@ class Pacenote:
     def pacenotes_dir(self):
         self.notebook.ensure_pacenotes_dir()
 
-        clean_codriver_name = aipacenotes.util.clean_name_for_path(self.codriver_name())
+        clean_codriver_name = aipacenotes.util.clean_name_for_path(self.codriver_name()+'_'+self.language()+'_'+self.voice())
         the_dir = aipacenotes.util.normalize_path(os.path.join(self.notebook.pacenotes_dir(), clean_codriver_name))
         pathlib.Path(the_dir).mkdir(parents=True, exist_ok=True)
         return the_dir
@@ -62,7 +62,9 @@ class Pacenote:
         return os.path.isfile(self.note_abs_path())
 
     def needs_update(self):
-        return not self.note_file_exists()
+        file_doesnt_exist = not self.note_file_exists()
+        unknown = self.note() == aipacenotes.util.UNKNOWN_PLACEHOLDER
+        return file_doesnt_exist and not unknown
 
     def write_file(self, data):
         self.notebook.ensure_pacenotes_dir()
@@ -97,13 +99,19 @@ class Notebook:
         codrivers = self.data['codrivers']
         pacenotes = []
 
+        def concat_note_data(note_data):
+            before = note_data.get('before', '')
+            note   = note_data.get('note', '')
+            after  = note_data.get('after', '')
+            return ' '.join([before, note, after]).strip()
+
         for codriver_data in codrivers:
             for pacenote_data in self.data['pacenotes']:
                 # for each note language, make a copy of the whole note data.
-                for lang,note in pacenote_data['notes'].items():
+                for lang,note_data in pacenote_data['notes'].items():
                     if codriver_data['language'] == lang:
                         pn_data_copy = copy.deepcopy(pacenote_data)
-                        pn_data_copy['note'] = note
+                        pn_data_copy['note'] = concat_note_data(note_data)
                         pn_data_copy['language'] = lang
                         pn_data_copy['codriver'] = codriver_data # copy.deepcopy(codriver_data)
                         pacenote = Pacenote(self, pn_data_copy)

@@ -4,12 +4,14 @@ import sys
 import os
 import logging
 import datetime
-import numba
+import pathlib
 
 from PyQt6 import QtGui
 from PyQt6.QtWidgets import QApplication
 
 from aipacenotes.main_window import MainWindow
+import aipacenotes.settings.settings_manager
+import aipacenotes.util
 
 # set the windows process' id in order to get the desired task bar icon.
 def set_windows_app_id():
@@ -40,7 +42,21 @@ def set_up_logger():
         timestamp_str = date_time_obj.strftime("%d-%b-%Y_%H_%M_%S")
 
         hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
-        filename = '{}/AppData/Local/BeamNG.drive/0.30/aipacenotes-crash-{}.log'.format(hom, timestamp_str)
+        fname_log = 'aipacenotes-{}.log'.format(timestamp_str)
+
+        dirname_tmp = '{}/AppData/Local/BeamNG.drive/latest/temp'.format(hom)
+        dirname_tmp = aipacenotes.settings_manager.expand_windows_symlinks(dirname_tmp)
+        dirname_tmp = os.path.normpath(dirname_tmp)
+        dirname_tmp = aipacenotes.util.normalize_path(dirname_tmp)
+        pathlib.Path(dirname_tmp).mkdir(parents=False, exist_ok=True)
+
+        dirname_aip = '{}/aipacenotes'.format(dirname_tmp)
+        dirname_aip = os.path.normpath(dirname_aip)
+        dirname_aip = aipacenotes.util.normalize_path(dirname_aip)
+        pathlib.Path(dirname_aip).mkdir(parents=False, exist_ok=True)
+
+        filename = '{}/{}'.format(dirname_aip, fname_log)
+
         print(f"log file: {filename}")
         print(f"Check that file for errors if you encounter a problem.")
         logging.basicConfig(filename=filename, level=logging.DEBUG)

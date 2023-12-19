@@ -1,13 +1,8 @@
-# import json
-# import logging
-# import os
-
 from PyQt6.QtCore import (
     Qt,
     pyqtSignal,
     QAbstractTableModel,
     QThread,
-    # QPoint
 )
 
 from PyQt6.QtGui import QPainter, QMouseEvent, QPainterPath
@@ -15,12 +10,9 @@ from PyQt6.QtGui import QPainter, QMouseEvent, QPainterPath
 from PyQt6.QtWidgets import (
     QStyledItemDelegate,
     QMessageBox,
-    # QHeaderView,
     QPushButton,
-    # QComboBox,
     QTableView,
     QLabel,
-    QSizePolicy,
     QWidget,
     QVBoxLayout,
     QGroupBox,
@@ -30,16 +22,13 @@ from PyQt6.QtWidgets import (
 import sounddevice as sd
 import soundfile as sf
 
-# from aipacenotes.voice import SpeechToText
-# from aipacenotes import client as aip_client
-# from aipacenotes.settings import SettingsManager
 from aipacenotes.concurrency import TaskManager
 from . import RecordingThread
 from . import DotWidget, Transcript, TranscriptStore
 
-from PyQt6.QtCore import Qt, pyqtSignal, QRect
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPainter, QMouseEvent
-from PyQt6.QtWidgets import QStyledItemDelegate, QTableWidget
+from PyQt6.QtWidgets import QStyledItemDelegate
 
 class PlayButtonDelegate(QStyledItemDelegate):
     buttonClicked = pyqtSignal(int)
@@ -130,7 +119,7 @@ class TranscribeTabWidget(QWidget):
         self.network_tab.on_endpoint_recording_stop.connect(self.on_endpoint_recording_stop)
         self.network_tab.on_endpoint_recording_cut.connect(self.on_endpoint_recording_cut)
 
-        self.fname_transcripts = self.settings_manager.get_transcripts_fname()
+        self.fname_transcript = self.settings_manager.get_transcript_fname()
 
         self.recording_thread = RecordingThread(self.settings_manager)
         self.recording_thread.transcript_created.connect(self.on_transcript_created)
@@ -198,10 +187,8 @@ class TranscribeTabWidget(QWidget):
         recording_btn_layout.addWidget(self.cut_button)
 
         self.recording_widget = DotWidget(Qt.GlobalColor.red, "recording", "recording")
-        # self.status_label = QLabel('ready')
         recording_btn_layout.addWidget(self.recording_widget)
 
-        # button_layout.addLayout(recording_btn_layout)
         button_layout.addWidget(self.recording_group_box)
 
 
@@ -210,7 +197,7 @@ class TranscribeTabWidget(QWidget):
         group_box.setLayout(transcript_layout)
         group_box.setMaximumWidth(group_box_max_w)
 
-        self.transcript_fname_label = QLabel('Path: ' + self.fname_transcripts)
+        self.transcript_fname_label = QLabel('Path: ' + self.fname_transcript)
         transcript_layout.addWidget(self.transcript_fname_label)
 
         self.clear_button = QPushButton('Clear')
@@ -221,11 +208,6 @@ class TranscribeTabWidget(QWidget):
         button_layout.addWidget(group_box)
 
         layout.addLayout(button_layout)
-
-        # self.transcription_output = QTextEdit()
-        # self.transcription_output.setReadOnly(True)
-        # self.transcription_output.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        # layout.addWidget(self.transcription_output)
 
         self.table = TranscriptTable()
         self.table.verticalHeader().setVisible(False)
@@ -243,7 +225,7 @@ class TranscribeTabWidget(QWidget):
         """
         header.setStyleSheet(stylesheet)
 
-        self.transcript_store = TranscriptStore(self.fname_transcripts)
+        self.transcript_store = TranscriptStore(self.fname_transcript)
         self.table_model = TranscriptionStoreTableModel(self.transcript_store)
         self.table.setModel(self.table_model)
         self.table.setColumnWidth(0, 400)
@@ -314,8 +296,6 @@ class TranscribeTabWidget(QWidget):
         returnValue = msgBox.exec()
         if returnValue == QMessageBox.StandardButton.Yes:
             self.transcript_store.clear()
-            # with open(self.fname_transcripts, 'w') as f:
-                # f.truncate(0)
             self.write_transcription()
             self.table_model.layoutChanged.emit()
 
@@ -325,11 +305,7 @@ class TranscribeTabWidget(QWidget):
     def start_recording(self, vehicle_pos=None):
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
-        fname = self.recording_thread.start_recording()
-        # if vehicle_pos:
-            # vehicle_pos['_src'] = 'start_recording'
-            # vehicle_pos['_file'] = fname
-            # self.append_vehicle_pos(vehicle_pos, '             ')
+        self.recording_thread.start_recording()
 
     def stop_recording(self, src='stop_recording', vehicle_pos=None):
         self.start_button.setEnabled(True)
@@ -344,10 +320,8 @@ class TranscribeTabWidget(QWidget):
         self.start_recording()
 
     def on_transcript_created(self, transcript):
-        # self.transcription_output.append(f"wrote recording to file: {fname}")
         self.transcript_store.add(transcript)
         self.transcript_store.print()
-        # self.refresh_table.emit()
         self.table_model.layoutChanged.emit()
         self.task_manager.submit(self.run_transcribe, transcript)
 

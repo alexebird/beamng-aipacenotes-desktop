@@ -1,8 +1,10 @@
 import time
 import json
 from datetime import datetime
+import aipacenotes
 
 from aipacenotes.voice import SpeechToText
+import aipacenotes.util
 
 class Transcript:
     col_count = 5
@@ -55,7 +57,7 @@ class Transcript:
         # speech.trim_silence()
         txt = speech.transcribe()
         if txt is None:
-            txt = "[unknown]"
+            txt = aipacenotes.util.UNKNOWN_PLACEHOLDER
             self.success = False
         else:
             txt = txt.lower()
@@ -63,7 +65,7 @@ class Transcript:
         self.txt = txt
 
 class TranscriptStore:
-    transcripts_key = 'transcripts'
+    transcripts_key = 'transcript'
 
     def __init__(self, fname):
         self.fname = fname
@@ -75,10 +77,10 @@ class TranscriptStore:
                 data = json.load(file)
         except FileNotFoundError:
             # If the file doesn't exist, initialize data with default content
-            data = {'transcripts': []}
+            data = {self.transcripts_key: []}
 
         self.clear()
-        for item in data["transcripts"]:
+        for item in data[self.transcripts_key]:
             transcript = Transcript(
                 src=item.get("src"),
                 fname=item.get("file"),

@@ -202,6 +202,14 @@ class PacenotesTabWidget(QWidget):
             except OSError as e:
                 print(f"Error: {file_path} : {e.strerror}")
 
+
+        for root, dirs, files in os.walk(notebook.pacenotes_dir(), topdown=False):
+            for name in dirs:
+                dir_path = os.path.join(root, name)
+                if not os.listdir(dir_path):  # Check if the directory is empty
+                    os.rmdir(dir_path)
+                    print(f"Deleted empty directory: {dir_path}")
+
     def on_job_run_finished(self, job):
         self.jobs_model.layoutChanged.emit()
         self.notebook_table_model.layoutChanged.emit()
