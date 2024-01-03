@@ -1,4 +1,6 @@
 import json
+import pprint
+import logging
 import copy
 import os
 import win32com.client
@@ -7,12 +9,22 @@ import re
 from . import defaults
 import aipacenotes.util
 
+
 def deep_merge(dict1, dict2):
     result = dict1.copy()  # Start with dict1's keys and values
     for key, value in dict2.items():  # Add dict2's keys and values
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
+        if key in result:
+            if isinstance(result[key], dict) and isinstance(value, dict):
+                # If both are dicts, recurse
+                result[key] = deep_merge(result[key], value)
+            elif isinstance(result[key], list) and isinstance(value, list):
+                # If both are lists, extend the list from dict1 with elements from the list in dict2
+                result[key] = result[key] + value
+            else:
+                # If they are of different types or not both lists/dicts, replace the value in dict1 with that from dict2
+                result[key] = value
         else:
+            # If the key from dict2 doesn't exist in dict1, add it to result
             result[key] = value
     return result
 
@@ -74,19 +86,6 @@ class SettingsManager():
 
         return output_string
 
-    def detect_voices_fnames(self):
-        voices_fname_mod = self.settings['voices_path_mod']
-        voices_fname_user = self.settings['voices_path_user']
-        fnames = []
-
-        if os.path.isfile(voices_fname_mod):
-            fnames.append(voices_fname_mod)
-
-        if os.path.isfile(voices_fname_user):
-            fnames.append(voices_fname_user)
-
-        return fnames
-
     def get_pacenotes_search_paths(self):
         return self.settings['pacenotes_search_paths']
 
@@ -117,46 +116,76 @@ class SettingsManager():
         settings = copy.deepcopy(defaults.default_settings)
         settings['HOME'] = home_dir()
 
+        # expand settings dict values
         for key, val in settings.items():
-            # print(f"{key}={settings[key]}")
             if type(val) == str:
                 settings[key] = self.expand_path(settings, val)
             elif type(val) == list:
                 settings[key] = [self.expand_path(settings, v) for v in val]
-            # print(f"{key}={settings[key]}")
 
         return settings
 
+    def pretty_print(self, name, data):
+        pretty_printer = pprint.PrettyPrinter()
+        formatted_dict = pretty_printer.pformat(data)
+        logging.debug(f"settings from '{name}':\n\n%s\n", formatted_dict)
+
     def load(self):
-        print(f"loading settings")
+        logging.info(f"loading settings")
         user_settings = self.get_settings_path_user()
 
+        self.pretty_print('<default settings>', self.settings)
+
         if os.path.isfile(user_settings):
-            print(f"merging in settings file at {user_settings}")
+            logging.info(f"merging in user settings file at {user_settings}")
             with open(user_settings, 'r') as file:
                 data = json.load(file)
             self.settings = deep_merge(self.settings, data)
-
-        print(f"settings={self.settings}")
+            self.pretty_print(user_settings, data)
+        else:
+            logging.info("no user settings file found at %s", user_settings)
 
         self.load_voices()
 
     def load_voices(self):
-        fnames = self.detect_voices_fnames()
+        voices_files = self.settings['voice_files']
+        logging.info(f"loading {len(voices_files)} voice files")
         self.voices = {}
+        ext = '.zip'
 
-        for fname in fnames:
-            with open(fname, 'r') as file:
-                voices_data = json.load(file)
-                for k,v in voices_data.items():
-                    self.voices[k] = v
+        for e in voices_files:
+            if ext in e:
+                logging.debug(f"voice file ({ext}): {e}")
+                count = 0
+                zip_fname, inner_fname = self.split_path_after_ext(ext, e)
+                if zip_fname and os.path.isfile(zip_fname):
+                    data = aipacenotes.util.read_file_from_zip(zip_fname, inner_fname)
+                    if data:
+                        data = json.loads(data)
+                        for k,v in data.items():
+                            self.voices[k] = v
+                            count += 1
+                logging.debug(f"added {count} voices")
+            else:
+                logging.debug(f"voice file: {e}")
+                count = 0
+                with open(e, 'r') as file:
+                    voices_data = json.load(file)
+                    for k,v in voices_data.items():
+                        self.voices[k] = v
+                        count += 1
+                logging.debug(f"added {count} voices")
 
-        print(f"voices={self.voices}")
+        self.pretty_print('voices', self.voices)
+
+    # assumes file_path does indeed contain ext.
+    def split_path_after_ext(self, ext, file_path):
+        if file_path.endswith(ext):
+            logging.warn("file path with .zip must have additional path (the path inside the zip): %s", file_path)
+            return (None, None)
+        else:
+            zip_fname, inner_fname = file_path.split(ext+'/')
+            return (zip_fname+ext, inner_fname)
 
     def voice_config(self, voice):
         return self.voices.get(voice, None)
-        # if voice in self.voices:
-        #     return self.voices[voice]
-        # else:
-        #     # raise ValueError(f"voice '{voice}' not found in any *.voices.json file")
-        #     return None

@@ -1,3 +1,4 @@
+import logging
 import time
 
 from .rally_file import Pacenote
@@ -37,7 +38,7 @@ class UpdateJob:
         return self._status
 
     def run(self, done_signal):
-        print(f"UpdateJob.run '{self.pacenote}'")
+        logging.debug(f"UpdateJob.run '{self.pacenote}'")
 
         # self._updated_at = time.time()
         self.update_ago_cache()
@@ -61,10 +62,13 @@ class UpdateJob:
                 self.pacenote.write_file(response.content)
                 self._status = UPDATE_JOB_STATUS_SUCCESS
             else:
+                logging.error(f"network error")
                 self._status = UPDATE_JOB_STATUS_ERROR
                 self.store.set_error(self)
         else:
+            logging.error(f"no voice_config")
             self._status = UPDATE_JOB_STATUS_ERROR
+            self.store.set_error(self)
 
         self._updated_at = time.time()
         self.update_ago_cache()
@@ -154,20 +158,30 @@ class UpdateJobsStore:
 
     def has_job_for_pacenote(self, pacenote):
         id = pacenote_job_id(pacenote)
+
+        rv = False
+
         if id in self.pacenote_ids_lock:
             job = self.pacenote_ids_lock[id]
             if job is not None:
-                return True
-            else:
-                return False
-        elif id in self.pacenote_ids_error:
+                # return True
+                rv = True
+            # else:
+                # return False
+
+        logging.debug(f"UpdateJobsStore.has_job_for_pacenote {pacenote.short_name()} | lock rv={rv}")
+
+        if id in self.pacenote_ids_error:
             job = self.pacenote_ids_error[id]
             if job is not None:
-                return True
-            else:
-                return False
-        else:
-            return False
+                # return True
+                rv = True
+            # else:
+                # return False
+
+        logging.debug(f"UpdateJobsStore.has_job_for_pacenote {pacenote.short_name()} | error rv={rv}")
+
+        return rv
 
     def print(self):
         print("UpdateJobsStore")

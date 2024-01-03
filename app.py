@@ -36,7 +36,12 @@ def set_up_logger():
     numba_logger.setLevel(logging.WARNING)
 
     if is_dev():
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+        logging.basicConfig(
+            stream=sys.stdout,
+            level=logging.DEBUG,
+            format='%(asctime)s %(levelname)s %(message)s',
+            datefmt='%Y-%m-%dT%H:%M:%S%z'
+        )
     else:
         date_time_obj = datetime.datetime.now()
         timestamp_str = date_time_obj.strftime("%d-%b-%Y_%H_%M_%S")

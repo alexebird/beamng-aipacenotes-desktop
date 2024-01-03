@@ -10,16 +10,14 @@ USAGE
 cd C:\Users\bird\Desktop\beam-bird\gh_repos\beamng-aipacenotes-desktop
 ```
 3. activate virtualenv. run:
-
-    ```
-    call C:\Users\bird\.virtualenvs\aipacenotes\Scripts\activate.bat
-    ```
+```
+call C:\Users\bird\.virtualenvs\aipacenotes\Scripts\activate.bat
+```
 4. run app:
-
-    ```
-    set AIP_DEV=t
-    python app.py
-    ```
+```
+set AIP_DEV=t
+python app.py
+```
 
 PACKAGING
 ---

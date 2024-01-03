@@ -1,4 +1,5 @@
 import os
+import logging
 import sounddevice as sd
 import soundfile as sf
 
@@ -151,6 +152,7 @@ class PacenotesTabWidget(QWidget):
         self.task_manager.submit(_special_button_refresh)
 
     def refresh_pacenotes(self):
+        # logging.debug('refreshing pacenotes')
         notebook_file = self.notebook_table_model.notebook_file
         if not notebook_file:
             return
@@ -203,6 +205,7 @@ class PacenotesTabWidget(QWidget):
                 print(f"Error: {file_path} : {e.strerror}")
 
 
+        # if self.jobs_model.rowCount() == 0:
         for root, dirs, files in os.walk(notebook.pacenotes_dir(), topdown=False):
             for name in dirs:
                 dir_path = os.path.join(root, name)

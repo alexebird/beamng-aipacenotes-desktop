@@ -1,7 +1,8 @@
-import json
 import copy
-import pathlib
+import json
+import logging
 import os
+import pathlib
 import re
 
 import aipacenotes.util
@@ -12,10 +13,13 @@ class Pacenote:
         self.data = data
 
     def __str__(self):
+        return f'{self.short_name()} | {self.note_abs_path()}'
+
+    def short_name(self):
         exist = 'F'
         if  self.note_file_exists():
             exist = 'T'
-        return f'[{exist}] {self.name()}: {self.note()} | {self.note_abs_path()}'
+        return f'[exist={exist}] {self.clean_codriver_name()} | {self.name()}: {self.note()}'
 
     def name(self):
         return self.data['name']
@@ -50,11 +54,19 @@ class Pacenote:
     def note_abs_path(self):
         return aipacenotes.util.normalize_path(os.path.join(self.pacenotes_dir(), self.note_basename()))
 
+    def clean_codriver_name(self):
+        return aipacenotes.util.clean_name_for_path(
+            self.codriver_name() + '_'+self.language() + '_' + self.voice()
+        )
+
     def pacenotes_dir(self):
         self.notebook.ensure_pacenotes_dir()
-
-        clean_codriver_name = aipacenotes.util.clean_name_for_path(self.codriver_name()+'_'+self.language()+'_'+self.voice())
-        the_dir = aipacenotes.util.normalize_path(os.path.join(self.notebook.pacenotes_dir(), clean_codriver_name))
+        the_dir = aipacenotes.util.normalize_path(
+            os.path.join(
+                self.notebook.pacenotes_dir(),
+                self.clean_codriver_name()
+            )
+        )
         pathlib.Path(the_dir).mkdir(parents=True, exist_ok=True)
         return the_dir
 
@@ -64,7 +76,9 @@ class Pacenote:
     def needs_update(self):
         file_doesnt_exist = not self.note_file_exists()
         unknown = self.note() == aipacenotes.util.UNKNOWN_PLACEHOLDER
-        return file_doesnt_exist and not unknown
+        rv = file_doesnt_exist and not unknown
+        logging.debug(f"Pacenote.needs_update() {self.short_name()} | file_doesnt_exist={file_doesnt_exist} unknown={unknown} rv={rv}")
+        return rv
 
     def write_file(self, data):
         self.notebook.ensure_pacenotes_dir()
