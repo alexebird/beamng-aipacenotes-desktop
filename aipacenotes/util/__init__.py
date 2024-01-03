@@ -1,9 +1,10 @@
 import os
 import re
-# import requests
+import uuid
 import zipfile
 
 UNKNOWN_PLACEHOLDER = '[unknown]'
+APP_NAME = 'AiPacenotesDesktop'
 
 def normalize_path(in_path):
     return os.path.normpath(in_path).replace("\\", "/")
@@ -47,4 +48,35 @@ def read_file_from_zip(zip_path, file_name):
     except FileNotFoundError:
         # Handle the case where the zip file itself isn't found
         print(f"Error: The zip file '{zip_path}' does not exist.")
+        return None
+
+def open_file_explorer(file_path):
+    if os.path.isfile(file_path):
+        file_path = os.path.dirname(file_path)
+    print(f"opening {file_path}")
+    os.startfile(file_path)
+
+def write_uuid_to_appdata():
+    appdata_dir = os.getenv('APPDATA')
+    app_dir = os.path.join(appdata_dir, APP_NAME)
+    file_path = os.path.join(app_dir, 'uuid.txt')
+
+    os.makedirs(app_dir, exist_ok=True)
+
+    if not os.path.exists(file_path):
+        random_uuid = uuid.uuid4()
+        with open(file_path, 'w') as file:
+            file.write(str(random_uuid))
+
+    return file_path
+
+def read_uuid_from_appdata():
+    appdata_dir = os.getenv('APPDATA')
+    file_path = os.path.join(appdata_dir, APP_NAME, 'uuid.txt')
+
+    try:
+        with open(file_path, 'r') as file:
+            uuid_str = file.read()
+            return uuid_str
+    except FileNotFoundError:
         return None

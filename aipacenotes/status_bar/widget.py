@@ -1,18 +1,13 @@
 from PyQt6.QtCore import (
-    Qt,
     pyqtSignal,
 )
 
-from PyQt6.QtGui import (
-    QClipboard,
-    QContextMenuEvent,
-    QFont,
-)
+# from PyQt6.QtGui import (
+# )
 
 from PyQt6.QtWidgets import (
     QWidget,
     QLabel,
-    QVBoxLayout,
     QHBoxLayout,
     QMenu,
     QApplication,
@@ -40,7 +35,7 @@ class StatusBarWidget(QWidget):
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
 
-        self.left_label = ClickableLabel("Welcome.")
+        self.left_label = ClickableLabel("")
         self.right_label = ClickableLabel("")
         # self.statusBar().addPermanentWidget(status_label)
         # font = QFont("Monospace")

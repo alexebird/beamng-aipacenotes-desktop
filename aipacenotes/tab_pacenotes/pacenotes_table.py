@@ -1,11 +1,10 @@
 from functools import partial
+import aipacenotes.util
 
 from PyQt6.QtCore import (
     Qt,
     pyqtSignal,
     QAbstractTableModel,
-    QRect,
-    QPoint
 )
 
 from PyQt6.QtGui import (
@@ -19,15 +18,9 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QStyledItemDelegate,
     QMenu,
-    QMessageBox,
-    QHeaderView,
-    QPushButton,
-    QComboBox,
     QTableView,
     QAbstractItemView,
-    QLabel,
-    QWidget,
-    QVBoxLayout,
+    QApplication,
 )
 
 class PlayButtonDelegate(QStyledItemDelegate):
@@ -165,8 +158,8 @@ class NotebookTable(QTableView):
 
         # self.setItemDelegateForColumn(4, PacenoteRowControls(self.model))
 
-        self.setItemDelegateForColumn(4, PlayButtonDelegate())
-        self.itemDelegateForColumn(4).buttonClicked.connect(self.playClicked)
+        self.setItemDelegateForColumn(5, PlayButtonDelegate())
+        self.itemDelegateForColumn(5).buttonClicked.connect(self.playClicked)
 
     def showContextMenu(self, position):
         index = self.indexAt(position)
@@ -174,25 +167,43 @@ class NotebookTable(QTableView):
 
         globalPos = self.mapToGlobal(position)
         menu = QMenu()
-        menu.addAction("TODO - Copy audio file path", partial(self.context_menu_action_copy_audio_file_path, row))
-        menu.addAction("TODO - Force re-generate audio file", partial(self.context_menu_action_force_regen, row))
+        menu.addAction("Open explorer", partial(self.context_menu_action_open_explorer, row))
+        menu.addAction("Copy audio file path", partial(self.context_menu_action_copy_audio_file_path, row))
+        menu.addAction("Force re-generate audio file", partial(self.context_menu_action_force_regen, row))
 
         menuSize = menu.sizeHint()
         globalPos.setY(globalPos.y() + int(menuSize.height()/2))
         menu.exec(globalPos)
 
+    def context_menu_action_open_explorer(self, row):
+        pacenote = self.get_pacenote_at_row(row)
+        if pacenote:
+            aipacenotes.util.open_file_explorer(pacenote.pacenotes_dir())
+
     def context_menu_action_copy_audio_file_path(self, row):
-        print(f"Option 1 selected for row {row}")
+        pacenote = self.get_pacenote_at_row(row)
+        if pacenote:
+            QApplication.clipboard().setText(pacenote.note_abs_path())
 
     def context_menu_action_force_regen(self, row):
-        print(f"Option 2 selected for row {row}")
+        pacenote = self.get_pacenote_at_row(row)
+        if pacenote:
+            pacenote.delete_audio_file()
+
+    def get_pacenote_at_row(self, row):
+        notebook_file = self.model().notebook_file
+        notebook = notebook_file.notebook()
+        if notebook:
+            return notebook.pacenotes()[row]
+        else:
+            return None
 
     def playClicked(self, row):
-        print(f"Play button clicked on row {row}")
+        # print(f"Play button clicked on row {row}")
         self.play_clicked.emit(row)
 
 class NotebookTableModel(QAbstractTableModel):
-    headers = ['file?', 'note', 'language', 'name', 'fname']
+    headers = ['file?', 'note', 'language', 'codriver', 'name', 'fname']
 
     def __init__(self):
         super(NotebookTableModel, self).__init__()
@@ -213,7 +224,7 @@ class NotebookTableModel(QAbstractTableModel):
             return 0
 
     def columnCount(self, parent=None):
-        return 5
+        return len(self.headers)
 
     def data(self, index, role):
         if not index.isValid():
@@ -228,12 +239,14 @@ class NotebookTableModel(QAbstractTableModel):
                     else:
                         return 'no'
                 elif index.column() == 1:
-                    return pacenote.note()
+                    return repr(pacenote.note())[1:-1]
                 elif index.column() == 2:
                     return f'{pacenote.language()} ({pacenote.voice()})'
                 elif index.column() == 3:
-                    return pacenote.name()
+                    return pacenote.codriver_name()
                 elif index.column() == 4:
+                    return pacenote.name()
+                elif index.column() == 5:
                     return pacenote.note_basename()
             else:
                 return None

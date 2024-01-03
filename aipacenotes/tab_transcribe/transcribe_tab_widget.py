@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
 )
 
+import logging
 import sounddevice as sd
 import soundfile as sf
 
@@ -81,7 +82,7 @@ class TranscriptTable(QTableView):
         self.itemDelegateForColumn(1).buttonClicked.connect(self.playClicked)
 
     def playClicked(self, row):
-        print(f"Play button clicked on row {row}")
+        # print(f"Play button clicked on row {row}")
         self.play_clicked.emit(row)
 
 class TranscriptionStoreTableModel(QAbstractTableModel):
@@ -246,7 +247,7 @@ class TranscribeTabWidget(QWidget):
         self.on_refresh_devices()
 
     def on_refresh_devices(self):
-        print('refreshing audio devices')
+        logging.info('refreshing audio devices')
         self.device_label.setText("Device: ...") # type: ignore
         self.task_manager.submit(self.refresh_devices)
 

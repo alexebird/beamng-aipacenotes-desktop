@@ -60,14 +60,12 @@ class Pacenote:
         )
 
     def pacenotes_dir(self):
-        self.notebook.ensure_pacenotes_dir()
         the_dir = aipacenotes.util.normalize_path(
             os.path.join(
                 self.notebook.pacenotes_dir(),
                 self.clean_codriver_name()
             )
         )
-        pathlib.Path(the_dir).mkdir(parents=True, exist_ok=True)
         return the_dir
 
     def note_file_exists(self):
@@ -76,14 +74,28 @@ class Pacenote:
     def needs_update(self):
         file_doesnt_exist = not self.note_file_exists()
         unknown = self.note() == aipacenotes.util.UNKNOWN_PLACEHOLDER
-        rv = file_doesnt_exist and not unknown
-        logging.debug(f"Pacenote.needs_update() {self.short_name()} | file_doesnt_exist={file_doesnt_exist} unknown={unknown} rv={rv}")
+        empty = self.note().strip() == ""
+        rv = file_doesnt_exist and not unknown and not empty
+        if rv:
+            logging.info(f"Pacenote.needs_update() {self.short_name()} | file_doesnt_exist={file_doesnt_exist} unknown={unknown} empty={empty} rv={rv}")
         return rv
 
-    def write_file(self, data):
+    def ensure_pacenotes_dir(self):
         self.notebook.ensure_pacenotes_dir()
+        pathlib.Path(self.pacenotes_dir()).mkdir(parents=True, exist_ok=True)
+
+    def write_file(self, data):
+        self.ensure_pacenotes_dir()
         with open(self.note_abs_path(), 'wb') as f:
             f.write(data)
+
+    def delete_audio_file(self):
+        file_path = self.note_abs_path()
+        try:
+            os.remove(file_path)
+            logging.info(f"deleted: {file_path}")
+        except OSError as e:
+            logging.error(f"error: {file_path} : {e.strerror}")
 
 class Notebook:
     def __init__(self, notebook_file, data):
@@ -141,9 +153,6 @@ class Notebook:
     def ensure_pacenotes_dir(self):
         self.notebook_file.ensure_pacenotes_dir()
         pathlib.Path(self.pacenotes_dir()).mkdir(parents=False, exist_ok=True)
-
-    def file_explorer_path(self):
-        return self.pacenotes_dir()
 
 class NotebookFile:
 

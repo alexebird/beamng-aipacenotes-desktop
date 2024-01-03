@@ -128,22 +128,22 @@ class SettingsManager():
     def pretty_print(self, name, data):
         pretty_printer = pprint.PrettyPrinter()
         formatted_dict = pretty_printer.pformat(data)
-        logging.debug(f"settings from '{name}':\n\n%s\n", formatted_dict)
+        logging.debug(f"{name}:\n\n%s\n", formatted_dict)
 
     def load(self):
         logging.info(f"loading settings")
         user_settings = self.get_settings_path_user()
-
-        self.pretty_print('<default settings>', self.settings)
 
         if os.path.isfile(user_settings):
             logging.info(f"merging in user settings file at {user_settings}")
             with open(user_settings, 'r') as file:
                 data = json.load(file)
             self.settings = deep_merge(self.settings, data)
-            self.pretty_print(user_settings, data)
+            # self.pretty_print("settings from {user_settings}", data)
         else:
             logging.info("no user settings file found at %s", user_settings)
+
+        self.pretty_print('settings', self.settings)
 
         self.load_voices()
 

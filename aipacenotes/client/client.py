@@ -1,8 +1,9 @@
 import json
-# import os
+import logging
 import time
 import requests
 from urllib.parse import urljoin
+import aipacenotes.util
 
 # TODO should be in settings.json
 # base_url = "https://pacenotes-concurrent-mo5q6vt2ea-uw.a.run.app"
@@ -16,6 +17,9 @@ transcribe_url = urljoin(base_url, 'f/transcribe')
 
 last_healthcheck_ts = 0.0
 
+aipacenotes.util.write_uuid_to_appdata()
+uuid = aipacenotes.util.read_uuid_from_appdata() or "heh"
+
 def post_create_pacenotes_audio(pacenote_note, voice_config):
     data = {
         "note_text": pacenote_note,
@@ -23,7 +27,8 @@ def post_create_pacenotes_audio(pacenote_note, voice_config):
     }
 
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "aip-uuid": uuid,
     }
 
     response = requests.post(create_pacenotes_audio_url, data=json.dumps(data), headers=headers)
@@ -34,8 +39,9 @@ def get_healthcheck():
     global last_healthcheck_ts
     log_str = f"aip-client: GET {healthcheck_url}"
     last_healthcheck_ts = time.time()
-    response = requests.get(healthcheck_url, timeout=120)
-    print(f"{log_str} -> {response.status_code}")
+    headers = { "aip-uuid": uuid }
+    response = requests.get(healthcheck_url, headers=headers, timeout=120)
+    logging.info(f"{log_str} -> {response.status_code}")
 
     if response.status_code == 200:
         return True
@@ -49,21 +55,12 @@ def get_healthcheck_rate_limited(rate_limit=50.0):
         return True
 
 def post_transcribe(fname):
-    # data = {
-    #     "note_text": pacenote.note_text,
-    #     "voice_name": pacenote.voice_name,
-    #     "language_code": pacenote.language_code,
-    # }
-
-    # headers = {
-    #     "Content-Type": "application/json"
-    # }
-
     with open(fname, 'rb') as f:
         files = {'audio': f}
-        response = requests.post(transcribe_url, files=files)
-        # response = requests.post(create_pacenotes_audio_url, data=json.dumps(data), headers=headers)
-        # if response.status_code == 200:
+        headers = {
+            "aip-uuid": uuid,
+        }
+        response = requests.post(transcribe_url, files=files, headers=headers)
         try:
             return response.json()
         except requests.exceptions.JSONDecodeError:

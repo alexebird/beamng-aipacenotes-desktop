@@ -63,7 +63,7 @@ class UpdateJobsTableModel(QAbstractTableModel):
             elif index.column() == 1:
                 return job._cached_updated_at_str
             elif index.column() == 2:
-                return pacenote.note()
+                return repr(pacenote.note())[1:-1]
             elif index.column() == 3:
                 return pacenote.note_basename()
             elif index.column() == 4:
@@ -84,7 +84,7 @@ class UpdateJobsTableModel(QAbstractTableModel):
                     return QColor(Qt.GlobalColor.green)
                 elif job.status() == UPDATE_JOB_STATUS_ERROR:
                     return QColor(Qt.GlobalColor.red)
-        
+
         if role == Qt.ItemDataRole.FontRole:
             if index.column() == 0:
                 font = QFont()
@@ -94,9 +94,9 @@ class UpdateJobsTableModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.TextAlignmentRole:
             if index.column() == 0:
                 return Qt.AlignmentFlag.AlignCenter
-        
+
         return None
-    
+
     def headerData(self, section, orientation, role):
         if role == Qt.ItemDataRole.DisplayRole:
             if orientation == Qt.Orientation.Horizontal:

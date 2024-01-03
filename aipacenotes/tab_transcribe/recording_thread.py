@@ -109,7 +109,7 @@ class RecordingThread(QThread):
                         logging.error(e)
 
     def run(self):
-        print("run")
+        logging.info("starting RecordingThread (but recording is not enabled)")
         while self.isInterruptionRequested() == False:
             try:
                 if self.recording_enabled and self.device:

@@ -10,8 +10,10 @@ from PyQt6.QtCore import (
 
 from PyQt6.QtWidgets import (
     QSplitter,
+    QSizePolicy,
     QLabel,
     QWidget,
+    QSpacerItem,
     QPushButton,
     QVBoxLayout,
     QHBoxLayout,
@@ -23,6 +25,7 @@ from .pacenotes_table import NotebookTable, NotebookTableModel
 from .pacenotes_tree_widget import PacenotesTreeWidget
 from .update_jobs import UpdateJobsStore, UpdateJob
 from .update_jobs_table import UpdateJobsTable, UpdateJobsTableModel
+from .vertical_progress_bar import VerticalColorSegmentProgressBar
 
 class PacenotesTabWidget(QWidget):
 
@@ -71,7 +74,8 @@ class PacenotesTabWidget(QWidget):
         self.notebook_table.setColumnWidth(1, 400)
         self.notebook_table.setColumnWidth(2, 150)
         self.notebook_table.setColumnWidth(3, 150)
-        self.notebook_table.setColumnWidth(4, 250)
+        self.notebook_table.setColumnWidth(4, 150)
+        self.notebook_table.setColumnWidth(5, 250)
         self.notebook_table.play_clicked.connect(self.play_audio)
 
         self.table_controls = QWidget()
@@ -86,8 +90,15 @@ class PacenotesTabWidget(QWidget):
 
         right_pane = QWidget()
         right_layout = QVBoxLayout(right_pane)
+        prog_layout = QHBoxLayout()
+        # Create the vertical color segment progress bar
+        header_height = self.notebook_table.horizontalHeader().height()
+        self.progress_bar = VerticalColorSegmentProgressBar(header_height)
+        prog_layout.addWidget(self.progress_bar)
+        prog_layout.addWidget(self.notebook_table)
+
         right_layout.addWidget(self.table_controls)
-        right_layout.addWidget(self.notebook_table)
+        right_layout.addLayout(prog_layout)
         self.splitter.addWidget(right_pane)
 
         self.update_jobs_store = UpdateJobsStore(self.settings_manager)
@@ -127,7 +138,7 @@ class PacenotesTabWidget(QWidget):
 
     def play_audio(self, row):
         def _play(fname):
-            self.settings_manager.update_status_left(f"played {fname}")
+            # self.settings_manager.update_status_left(f"played {fname}")
             data, samplerate = sf.read(fname)
             sd.play(data, samplerate)
             sd.wait()
@@ -178,7 +189,28 @@ class PacenotesTabWidget(QWidget):
         self.jobs_model.layoutChanged.emit()
         self.notebook_table_model.setNotebookFile(notebook_file)
         self.notebook_table_model.layoutChanged.emit()
+        self.refresh_vertical_progress()
         self.task_manager.gc_finished()
+
+    def refresh_vertical_progress(self):
+        segments = []
+
+        def clr_fn(pacenote):
+            return pacenote.note_file_exists() and Qt.GlobalColor.green or Qt.GlobalColor.red
+
+        notebook_file = self.notebook_table_model.notebook_file
+        notebook = notebook_file.notebook()
+        if notebook:
+            for pacenote in notebook.pacenotes():
+                if len(segments) == 0:
+                    segments.append([0, clr_fn(pacenote)])
+
+                if segments[-1][1] == pacenote.note_file_exists():
+                    segments[-1][0] += 1
+                else:
+                    segments.append([1, clr_fn(pacenote)])
+
+        self.progress_bar.set_segments(segments)
 
     def delete_orphaned_files(self, notebook_file):
         notebook = notebook_file.notebook()
