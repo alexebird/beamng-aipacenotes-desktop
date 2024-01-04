@@ -169,11 +169,12 @@ class SettingsManager():
             else:
                 logging.debug(f"voice file: {e}")
                 count = 0
-                with open(e, 'r') as file:
-                    voices_data = json.load(file)
-                    for k,v in voices_data.items():
-                        self.voices[k] = v
-                        count += 1
+                if os.path.isfile(e):
+                    with open(e, 'r') as file:
+                        voices_data = json.load(file)
+                        for k,v in voices_data.items():
+                            self.voices[k] = v
+                            count += 1
                 logging.debug(f"added {count} voices")
 
         self.pretty_print('voices', self.voices)

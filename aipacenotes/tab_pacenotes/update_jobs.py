@@ -136,6 +136,7 @@ class UpdateJobsStore:
 
         self.jobs.append(job)
         self.pacenote_ids_lock[id] = job
+        self.sort()
 
         return job
 

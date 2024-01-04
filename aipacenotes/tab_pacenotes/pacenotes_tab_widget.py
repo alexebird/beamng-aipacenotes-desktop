@@ -10,10 +10,8 @@ from PyQt6.QtCore import (
 
 from PyQt6.QtWidgets import (
     QSplitter,
-    QSizePolicy,
     QLabel,
     QWidget,
-    QSpacerItem,
     QPushButton,
     QVBoxLayout,
     QHBoxLayout,
@@ -23,7 +21,13 @@ import aipacenotes.util
 from aipacenotes.concurrency import TaskManager, TimerThread
 from .pacenotes_table import NotebookTable, NotebookTableModel
 from .pacenotes_tree_widget import PacenotesTreeWidget
-from .update_jobs import UpdateJobsStore, UpdateJob
+from .update_jobs import (
+    UpdateJobsStore,
+    UpdateJob,
+    UPDATE_JOB_STATUS_UPDATING,
+    UPDATE_JOB_STATUS_SUCCESS,
+    UPDATE_JOB_STATUS_ERROR,
+)
 from .update_jobs_table import UpdateJobsTable, UpdateJobsTableModel
 from .vertical_progress_bar import VerticalColorSegmentProgressBar
 
@@ -64,7 +68,12 @@ class PacenotesTabWidget(QWidget):
         self.tree = PacenotesTreeWidget(self.settings_manager)
         self.tree.notebookSelectionChanged.connect(self.on_tree_notebook_selection_changed)
 
-        self.splitter.addWidget(self.tree)
+        tree_wrapper = QWidget()
+        layout = QHBoxLayout()
+        layout.addWidget(self.tree)
+        tree_wrapper.setLayout(layout)
+
+        self.splitter.addWidget(tree_wrapper)
 
         self.notebook_table = NotebookTable()
 
@@ -93,8 +102,8 @@ class PacenotesTabWidget(QWidget):
         prog_layout = QHBoxLayout()
         # Create the vertical color segment progress bar
         header_height = self.notebook_table.horizontalHeader().height()
-        self.progress_bar = VerticalColorSegmentProgressBar(header_height)
-        prog_layout.addWidget(self.progress_bar)
+        self.pacenotes_progress_bar = VerticalColorSegmentProgressBar(header_height)
+        prog_layout.addWidget(self.pacenotes_progress_bar)
         prog_layout.addWidget(self.notebook_table)
 
         right_layout.addWidget(self.table_controls)
@@ -113,9 +122,18 @@ class PacenotesTabWidget(QWidget):
         jobs_table.setColumnWidth(4, 150)
         jobs_table.setColumnWidth(5, 500)
 
+        prog_layout = QHBoxLayout()
+        # Create the vertical color segment progress bar
+        header_height = jobs_table.horizontalHeader().height()
+        self.jobs_progress_bar = VerticalColorSegmentProgressBar(header_height)
+        prog_layout.addWidget(self.jobs_progress_bar)
+        prog_layout.addWidget(jobs_table)
+        bottom_widget = QWidget()
+        bottom_widget.setLayout(prog_layout)
+
         self.splitter_v = QSplitter(Qt.Orientation.Vertical)
         self.splitter_v.addWidget(self.splitter)
-        self.splitter_v.addWidget(jobs_table)
+        self.splitter_v.addWidget(bottom_widget)
 
         vbox = QVBoxLayout()
         vbox.addWidget(self.controls_pane)
@@ -135,6 +153,7 @@ class PacenotesTabWidget(QWidget):
     def on_tree_notebook_selection_changed(self, notebook_file):
         self.notebook_table_model.setNotebookFile(notebook_file)
         self.notebook_table_model.layoutChanged.emit()
+        self.refresh_pacenotes_table_progress()
 
     def play_audio(self, row):
         def _play(fname):
@@ -183,16 +202,18 @@ class PacenotesTabWidget(QWidget):
                 if job:
                     self.task_manager.submit(_run_job, job)
 
+        self.refresh_pacenotes_table_progress()
+        self.refresh_jobs_table_progress()
+
         self.update_jobs_store.update_job_time_agos()
         self.update_jobs_store.prune()
         self.delete_orphaned_files(notebook_file)
         self.jobs_model.layoutChanged.emit()
         self.notebook_table_model.setNotebookFile(notebook_file)
         self.notebook_table_model.layoutChanged.emit()
-        self.refresh_vertical_progress()
         self.task_manager.gc_finished()
 
-    def refresh_vertical_progress(self):
+    def refresh_pacenotes_table_progress(self):
         segments = []
 
         def clr_fn(pacenote):
@@ -210,7 +231,31 @@ class PacenotesTabWidget(QWidget):
                 else:
                     segments.append([1, clr_fn(pacenote)])
 
-        self.progress_bar.set_segments(segments)
+        self.pacenotes_progress_bar.set_segments(segments)
+
+    def refresh_jobs_table_progress(self):
+        segments = []
+
+        def clr_fn(job):
+            if job.status() == UPDATE_JOB_STATUS_SUCCESS:
+                return Qt.GlobalColor.green
+            elif job.status() == UPDATE_JOB_STATUS_UPDATING:
+                return Qt.GlobalColor.cyan
+            elif job.status() == UPDATE_JOB_STATUS_ERROR:
+                return Qt.GlobalColor.red
+            else:
+                return Qt.GlobalColor.gray
+
+        for job in self.update_jobs_store.jobs:
+            if len(segments) == 0:
+                segments.append([0, clr_fn(job)])
+
+            if segments[-1][1] == job.status():
+                segments[-1][0] += 1
+            else:
+                segments.append([1, clr_fn(job)])
+
+        self.jobs_progress_bar.set_segments(segments)
 
     def delete_orphaned_files(self, notebook_file):
         notebook = notebook_file.notebook()
@@ -248,6 +293,8 @@ class PacenotesTabWidget(QWidget):
     def on_job_run_finished(self, job):
         self.jobs_model.layoutChanged.emit()
         self.notebook_table_model.layoutChanged.emit()
+        self.refresh_pacenotes_table_progress()
+        self.refresh_jobs_table_progress()
 
     def on_tree_refreshed(self):
         self.tree.expandAll()
