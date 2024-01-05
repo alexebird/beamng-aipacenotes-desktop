@@ -34,7 +34,10 @@ def rotate_file(file_path, max_rotation):
     if os.path.isfile(file_path):
         base, ext = os.path.splitext(file_path)  # Separate the extension from the path
         i = max_rotation - 1
-        os.remove(f"{base}.{i+1}{ext}")
+
+        oldest = f"{base}.{i+1}{ext}"
+        if os.path.isfile(oldest):
+            os.remove(oldest)
 
         while i > 0:
             src = f"{base}.{i}{ext}"
