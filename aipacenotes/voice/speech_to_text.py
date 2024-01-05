@@ -1,3 +1,4 @@
+import logging
 from aipacenotes import client as aip_client
 import wave
 import struct
