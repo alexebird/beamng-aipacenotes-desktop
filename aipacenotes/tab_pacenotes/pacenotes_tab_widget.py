@@ -277,9 +277,9 @@ class PacenotesTabWidget(QWidget):
         for file_path in files_to_delete:
             try:
                 os.remove(file_path)
-                print(f"Deleted: {file_path}")
+                logging.info(f"Deleted: {file_path}")
             except OSError as e:
-                print(f"Error: {file_path} : {e.strerror}")
+                logging.error(f"Error: {file_path} : {e.strerror}")
 
 
         # if self.jobs_model.rowCount() == 0:
@@ -288,7 +288,7 @@ class PacenotesTabWidget(QWidget):
                 dir_path = os.path.join(root, name)
                 if not os.listdir(dir_path):  # Check if the directory is empty
                     os.rmdir(dir_path)
-                    print(f"Deleted empty directory: {dir_path}")
+                    logging.info(f"Deleted empty directory: {dir_path}")
 
     def on_job_run_finished(self, job):
         self.jobs_model.layoutChanged.emit()

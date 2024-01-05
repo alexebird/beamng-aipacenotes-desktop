@@ -23,10 +23,10 @@ class SpeechToText:
     def __init__(self, fname):
         self.fname = fname
         self.fname2 = "out2.wav"
-    
+
     def transcribe(self):
         response = aip_client.post_transcribe(self.fname)
-        print(response)
+        logging.info(response)
         if response:
             if response['error'] == True:
                 return None
@@ -54,11 +54,11 @@ class SpeechToText:
             framerate = wav_file.getframerate()
             num_frames = wav_file.getnframes()
             sample_rate = framerate
-            
+
             # print(f"Number of Channels: {num_channels}")
             # print(f"Sample Width: {sample_width}")
             # print(f"Number of Frames: {num_frames}")
-            print(f"Sample Rate: {sample_rate}")
+            logging.debug(f"Sample Rate: {sample_rate}")
 
             # Read audio data
             audio_data = wav_file.readframes(num_frames)

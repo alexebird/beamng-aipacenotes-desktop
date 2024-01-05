@@ -1,5 +1,6 @@
 import time
 import threading
+import logging
 
 from PyQt6.QtCore import (
     QThread,
@@ -27,7 +28,7 @@ class HealthcheckThread(QThread):
                     self.healthcheck_passed.emit()
                 else:
                     self.healthcheck_failed.emit()
-                    print("TimerThread timeout on thread:", threading.current_thread().name)
+                    logging.warn("TimerThread timeout on thread:", threading.current_thread().name)
 
             time.sleep(self.timeout_sec)
 
@@ -36,6 +37,6 @@ class HealthcheckThread(QThread):
 
     def disable(self):
         self.enabled = False
-    
+
     def stop(self):
         self.running = False

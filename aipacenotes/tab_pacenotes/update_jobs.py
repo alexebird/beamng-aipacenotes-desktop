@@ -185,11 +185,11 @@ class UpdateJobsStore:
         return rv
 
     def print(self):
-        print("UpdateJobsStore")
-        print("  pacenote_ids_lock")
+        logging.debug("UpdateJobsStore")
+        logging.debug("  pacenote_ids_lock")
         for id in self.pacenote_ids_lock:
-            print(f"    - {id}")
-        print("  pacenote_ids_error")
+            logging.debug(f"    - {id}")
+        logging.debug("  pacenote_ids_error")
         for id in self.pacenote_ids_error:
-            print(f"    - {id}")
-        print("------------------------------------------------")
+            logging.debug(f"    - {id}")
+        logging.debug("------------------------------------------------")

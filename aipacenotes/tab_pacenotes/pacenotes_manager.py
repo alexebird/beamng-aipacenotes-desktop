@@ -1,4 +1,5 @@
 import os
+import logging
 import re
 import json
 import pathlib
@@ -13,12 +14,12 @@ class PacenotesManager():
         self.settings_manager = settings_manager
         self.pacenotes_network_cache = {}
         self.db = Database()
-    
+
     def delete_stale_pacenotes(self, fname, scanned_pacenotes):
         pnids = set([pn.id for pn in scanned_pacenotes])
 
         existing_db_notes = self.db.select_with_fname(fname)
-    
+
         i = 0
         while i < len(existing_db_notes):
             existing = existing_db_notes[i]
@@ -47,11 +48,11 @@ class PacenotesManager():
         def load_file(fname):
             with open(fname) as f:
                 return (fname, json.load(f))
-        
+
         for fname in pacenotes_files:
             rv = load_file(fname)
             scan_data_pacenotes.append(rv)
-        
+
         for fname in rally_files:
             rv = load_file(fname)
             scan_data_rally.append(rv)
@@ -82,12 +83,12 @@ class PacenotesManager():
             for ogg in paths:
                 ogg = str(ogg)
                 found_oggs.add(ogg)
-        
+
             to_delete = found_oggs - pacenote_expected_audio_files
 
             for deleteme in to_delete:
                 os.remove(deleteme)
-                print(f"deleted {deleteme}")
+                logging.info(f"deleted {deleteme}")
 
     def pacenotes_json_to_obj(self, pacenotes_json):
         objs = []
@@ -143,7 +144,7 @@ class PacenotesManager():
                     pn.set_data(data_dict)
 
                     objs.append(pn)
-        
+
         return objs
 
     def rally_json_to_obj(self, rally_json):
@@ -205,7 +206,7 @@ class PacenotesManager():
 
                     if note != "":
                         objs.append(pn)
-        
+
         return objs
 
     def build_pacenotes_audio_file_path(self, pacenotes_json_fname, version_id, pacenote_fname):
@@ -223,7 +224,7 @@ class PacenotesManager():
         pacenotes_dir = os.path.dirname(rally_json_fname)
         fname = os.path.join(pacenotes_dir, 'pacenotes', clean_string(notebook_name), pacenote_fname)
         return fname
-    
+
     # also needs to be changed in the private repo, and in the custom lua flowgraph code.
     # def normalize_pacenote_text(self, input):
     #     # Convert the input to lower case
@@ -248,13 +249,13 @@ class PacenotesManager():
     #     input = re.sub(r'-$', '', input)
 
     #     return input
-    
+
     def normalize_pacenote_text(self, s):
         hash_value = 0
         for char in s:
             hash_value = (hash_value * 33 + ord(char)) % 2_147_483_647
         return hash_value
-    
+
     def get_mission_id_from_path(self, fname):
         pattern = r"missions\\([^\\]+\\[^\\]+\\[^\\]+)"
         match = re.search(pattern, fname)
@@ -276,4 +277,4 @@ class PacenotesManager():
             return m
         else:
             raise ValueError(f"couldnt extract mission location from: {fname}")
-    
+

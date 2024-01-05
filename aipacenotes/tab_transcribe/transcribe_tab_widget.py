@@ -266,7 +266,7 @@ class TranscribeTabWidget(QWidget):
             sd._terminate()
             sd._initialize()
             device = sd.query_devices(kind='input')
-            print("found audio input device: " + str(device))
+            logging.info("found audio input device: " + str(device))
             self.recording_thread.set_device(device)
             self.device_refreshed.emit(device)
             if was_recording:
@@ -289,7 +289,7 @@ class TranscribeTabWidget(QWidget):
     def clear_transcription(self):
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Icon.Question)
-        msgBox.setText("Are you sure you want to clear all data?")
+        msgBox.setText("Are you sure you want to clear all transcripts?")
         msgBox.setWindowTitle("Confirmation")
         msgBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
 
@@ -333,15 +333,15 @@ class TranscribeTabWidget(QWidget):
         self.recording_widget.setState(is_recording)
 
     def on_endpoint_recording_start(self, vehicle_pos):
-        print("TranscribeTab recording start")
+        logging.debug("TranscribeTab recording start")
         self.start_recording(vehicle_pos)
 
     def on_endpoint_recording_stop(self, vehicle_pos):
-        print("TranscribeTab recording stop")
+        logging.debug("TranscribeTab recording stop")
         self.stop_recording('stop_recording', vehicle_pos)
 
     def on_endpoint_recording_cut(self, vehicle_pos):
-        print("TranscribeTab recording cut")
+        logging.debug("TranscribeTab recording cut")
         self.cut_recording(vehicle_pos)
 
     def audio_signal_detected(self, above_threshold):

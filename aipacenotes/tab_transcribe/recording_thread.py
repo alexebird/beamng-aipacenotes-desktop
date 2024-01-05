@@ -70,7 +70,7 @@ class RecordingThread(QThread):
         def callback(indata, _frames, _time, status):
             """This is called (from a separate thread) for each audio block."""
             if status:
-                print(f"buffer_audio_in: {status}")
+                logging.debug(f"buffer_audio_in: {status}")
             if self.recording_enabled:
                 self.q.put(indata.copy())
 
@@ -147,5 +147,5 @@ class RecordingThread(QThread):
         self.update_recording_status.emit(False)
 
     def stop(self):
-        print("RecordingThread stopping")
+        logging.debug("RecordingThread stopping")
         self.requestInterruption()

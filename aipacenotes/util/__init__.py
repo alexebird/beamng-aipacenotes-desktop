@@ -2,6 +2,7 @@ import os
 import re
 import uuid
 import zipfile
+import logging
 
 UNKNOWN_PLACEHOLDER = '[unknown]'
 APP_NAME = 'AiPacenotesDesktop'
@@ -42,21 +43,21 @@ def read_file_from_zip(zip_path, file_name):
                     return contents
             except KeyError:
                 # Handle the case where the file isn't found in the zip archive
-                print(f"Error: The file '{file_name}' does not exist in the zip archive.")
+                logging.error(f"Error: The file '{file_name}' does not exist in the zip archive.")
                 return None
             except zipfile.BadZipFile:
                 # Handle other zipfile related errors (e.g., corrupted file)
-                print("Error: Bad zip file.")
+                logging.error("Error: Bad zip file.")
                 return None
     except FileNotFoundError:
         # Handle the case where the zip file itself isn't found
-        print(f"Error: The zip file '{zip_path}' does not exist.")
+        logging.error(f"Error: The zip file '{zip_path}' does not exist.")
         return None
 
 def open_file_explorer(file_path):
     if os.path.isfile(file_path):
         file_path = os.path.dirname(file_path)
-    print(f"opening {file_path}")
+    logging.info(f"opening {file_path}")
     os.startfile(file_path)
 
 def write_uuid_to_appdata():

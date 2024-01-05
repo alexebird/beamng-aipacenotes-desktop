@@ -1,13 +1,14 @@
+import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 class TaskManager:
     def __init__(self, max_workers):
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.futures = []
-    
+
     def get_future_count(self):
         return len(self.futures)
-    
+
     def gc_finished(self):
         self.futures = [future for future in self.futures if not future.done()]
 
@@ -27,7 +28,7 @@ class TaskManager:
             pass
         except Exception as e:
             import traceback
-            print(f"An error occurred in a future: {e}")
+            logging.error(f"An error occurred in a future: {e}")
             traceback.print_exc()
 
     def shutdown(self):

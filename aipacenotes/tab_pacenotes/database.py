@@ -7,13 +7,13 @@ class Database():
         self.pacenotes = []
         # unique index pacenotes on id
         self.unique_index_pn_id = {}
-    
+
     def select(self, pnid):
         if pnid in self.unique_index_pn_id:
             return self.unique_index_pn_id[pnid]
         else:
             return None
-    
+
     def select_with_fname(self, query_pacenotes_fname):
         result = []
 
@@ -22,12 +22,12 @@ class Database():
                 result.append(pn)
 
         return result
-    
+
     def delete(self, pnid):
         pn = self.select(pnid)
         self.pacenotes.remove(pn)
         del self.unique_index_pn_id[pnid]
-    
+
     def insert(self, pacenote):
         pnid = pacenote.id
         if pnid in self.unique_index_pn_id:
@@ -36,14 +36,14 @@ class Database():
         self.unique_index_pn_id[pnid] = pacenote
         pacenote.touch()
         return pacenote
-    
+
     def upsert(self, pacenote):
         pnid = pacenote.id
         if pnid in self.unique_index_pn_id:
             return self.update(pacenote)
         else:
             return self.insert(pacenote)
-    
+
     def update(self, pacenote):
         pnid = pacenote.id
         existing = self.unique_index_pn_id[pnid]
@@ -57,7 +57,7 @@ class Database():
                 new_val = getattr(pacenote, attr)
                 if new_val != old_val:
                     setattr(existing, attr, new_val)
-                    print(f"updated field {attr} from '{old_val}' to '{new_val}'")
+                    logging.debug(f"updated field {attr} from '{old_val}' to '{new_val}'")
                     update_made = True
             return update_made
 

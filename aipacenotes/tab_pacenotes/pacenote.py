@@ -19,16 +19,16 @@ class Pacenote:
         self.dirty = False
         for attr in self.all_attrs:
             setattr(self, attr, None)
-    
+
     def touch(self):
         self.updated_at = time.time()
-    
+
     def set_dirty(self):
         self.dirty = True
 
     def clear_dirty(self):
         self.dirty = False
-    
+
     @property
     def id(self):
         return self.note_name + '+' + self.audio_path
@@ -39,7 +39,7 @@ class Pacenote:
                 setattr(self, key, value)
             else:
                 raise ValueError(f"tried to set illegal attr on pacenote: {key}")
-    
+
     def get_data(self, field):
         return getattr(self, field)
 
@@ -52,9 +52,9 @@ class Pacenote:
             # print(f'pacenote audio_path exists, setting to OK')
             self.filesystem_status = statuses.PN_STATUS_OK
         else:
-            print(f"pacenote needs sync. audio file doesnt exist: {self.audio_path}")
+            logging.info(f"pacenote needs sync. audio file doesnt exist: {self.audio_path}")
             self.filesystem_status = statuses.PN_STATUS_NEEDS_SYNC
-    
+
     @property
     def status(self):
         return self.network_status or self.filesystem_status

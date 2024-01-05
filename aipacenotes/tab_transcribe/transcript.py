@@ -1,4 +1,5 @@
 import time
+import logging
 import json
 from datetime import datetime
 import aipacenotes
@@ -108,11 +109,11 @@ class TranscriptStore:
         self.transcripts = []
 
     def print(self):
-        print(f"--------------------")
-        print(f"TranscriptStore")
-        print(f"  len={self.size()}")
+        logging.debug(f"--------------------")
+        logging.debug(f"TranscriptStore")
+        logging.debug(f"  len={self.size()}")
         for t in self.transcripts:
-            print(f"  - {t}")
+            logging.debug(f"  - {t}")
 
     def add(self, transcript):
         self.transcripts.append(transcript)
