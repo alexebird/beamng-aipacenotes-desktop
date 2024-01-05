@@ -86,6 +86,9 @@ class SettingsManager():
 
         return output_string
 
+    def get_recording_cut_delay(self):
+        return self.settings['recording_cut_delay']
+
     def get_pacenotes_search_paths(self):
         return self.settings['pacenotes_search_paths']
 

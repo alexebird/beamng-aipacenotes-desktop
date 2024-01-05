@@ -302,31 +302,33 @@ class TranscribeTabWidget(QWidget):
     def write_transcription(self):
         self.transcript_store.write_to_file()
 
-    def start_recording(self, vehicle_pos=None):
-        self.start_button.setEnabled(False)
-        self.stop_button.setEnabled(True)
+    def set_recording_ui_state(self, is_recording):
+        self.start_button.setEnabled(not is_recording)
+        self.stop_button.setEnabled(is_recording)
+
+    def start_recording(self):
+        self.set_recording_ui_state(True)
         self.recording_thread.start_recording()
 
-    def stop_recording(self, src='stop_recording', vehicle_pos=None):
-        self.start_button.setEnabled(True)
-        self.stop_button.setEnabled(False)
-        if not src:
-            src = 'stop_recording'
-        self.recording_thread.stop_recording(src, vehicle_pos)
+    def stop_recording(self, vehicle_pos=None):
+        self.set_recording_ui_state(False)
+        self.recording_thread.stop_recording(vehicle_pos)
 
     def cut_recording(self, vehicle_pos=None):
-        self.stop_recording('cut_recording', vehicle_pos)
+        self.set_recording_ui_state(True)
+        # self.stop_recording('cut_recording', vehicle_pos)
         # dont send the vehicle_pos because it will be really close to stop_recording's vehicle_pos.
-        self.start_recording()
+        # self.start_recording()
+        self.recording_thread.cut_recording(vehicle_pos)
 
     def on_transcript_created(self, transcript):
         self.transcript_store.add(transcript)
-        self.transcript_store.print()
         self.table_model.layoutChanged.emit()
         self.task_manager.submit(self.run_transcribe, transcript)
 
     def run_transcribe(self, transcript):
         transcript.transcribe()
+        self.transcript_store.print()
         self.transcribe_done.emit()
 
     def update_recording_status(self, is_recording):
@@ -334,11 +336,11 @@ class TranscribeTabWidget(QWidget):
 
     def on_endpoint_recording_start(self, vehicle_pos):
         logging.debug("TranscribeTab recording start")
-        self.start_recording(vehicle_pos)
+        self.start_recording()
 
     def on_endpoint_recording_stop(self, vehicle_pos):
         logging.debug("TranscribeTab recording stop")
-        self.stop_recording('stop_recording', vehicle_pos)
+        self.stop_recording(vehicle_pos)
 
     def on_endpoint_recording_cut(self, vehicle_pos):
         logging.debug("TranscribeTab recording cut")

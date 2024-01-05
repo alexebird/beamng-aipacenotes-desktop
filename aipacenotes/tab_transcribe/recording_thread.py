@@ -29,9 +29,20 @@ class RecordingThread(QThread):
         self.samplerate = 16000
         self.channels = 1
         self.f_out = None
-        self.should_record = False
+        self.fname_out = None
+        self.should_write_audio = False
+        self.cut_triggered = False
+        self.stop_triggered = False
+        self.last_vehicle_pos = None
         self.q = queue.Queue()
         self.recording_enabled = False
+        self.t_monitor_update = time.time()
+
+        # add little delay before ending a recording to make the UX of hitting
+        # cut a little more robust.
+        # Thanks to SH for this idea.
+        self.stop_delay = self.settings_manager.get_recording_cut_delay()
+        self.stop_delay_start_t = None
 
         self.setup_tmp_dir()
 
@@ -66,6 +77,33 @@ class RecordingThread(QThread):
         else:
             return False  # Deactivate the monitor dot
 
+    def handle_monitoring(self, audio_data):
+        monitor_update_limit_seconds = 0.1 # debounce the monitor indicator a little.
+        t_now = time.time()
+        if t_now - self.t_monitor_update > monitor_update_limit_seconds:
+            self.audio_signal_detected.emit(self.analyze_frame_for_monitor(audio_data))
+            self.t_monitor_update = t_now
+
+    def read_audio_data_from_buffer(self):
+        audio_data = None
+        while not self.q.empty():
+            frame = self.q.get()
+            if audio_data is None:
+                audio_data = np.empty((0,frame.shape[1]), dtype=frame.dtype)
+            audio_data = np.concatenate((audio_data, frame))
+
+        return audio_data
+
+    def write_audio_data(self, audio_data):
+        try:
+            if self.f_out:
+                if self.f_out.closed:
+                    logging.warn('want to write_audio_data, but f_out is closed.')
+                else:
+                    self.f_out.write(audio_data)
+        except sf.SoundFileRuntimeError as e:
+            logging.error(e)
+
     def buffer_audio_in(self):
         def callback(indata, _frames, _time, status):
             """This is called (from a separate thread) for each audio block."""
@@ -74,39 +112,46 @@ class RecordingThread(QThread):
             if self.recording_enabled:
                 self.q.put(indata.copy())
 
-        t_monitor_update = time.time()
-        monitor_update_limit_seconds = 0.1 # debounce the monitor indicator a little.
+        self.t_monitor_update = time.time()
 
         with sd.InputStream(samplerate=self.samplerate,
                             device=int(self.device['index']), # type:ignore
                             channels=self.channels,
                             callback=callback):
             while self.recording_enabled and self.isInterruptionRequested() == False:
-                QThread.msleep(10) # put this at the top of the loop so that it runs no matter what.
+                # This sleep is to prevent the audio buffering loop from eating up a bunch of CPU.
+                # Put it at the top of the loop so that it runs no matter what.
+                QThread.msleep(10)
 
-                audio_data = None
-                while not self.q.empty():
-                    frame = self.q.get()
-                    if audio_data is None:
-                        audio_data = np.empty((0,frame.shape[1]), dtype=frame.dtype)
-                    audio_data = np.concatenate((audio_data, frame))
-
+                audio_data = self.read_audio_data_from_buffer()
                 if audio_data is None:
+                    # if there's no audio data, then we can't do anything anyway, so just continue.
                     continue
 
-                t_now = time.time()
-                if t_now - t_monitor_update > monitor_update_limit_seconds:
-                    self.audio_signal_detected.emit(self.analyze_frame_for_monitor(audio_data))
-                    t_monitor_update = t_now
+                # update the monitor with the latest batch of audio data.
+                self.handle_monitoring(audio_data)
 
-                if self.should_record:
-                    try:
-                        if self.f_out:
-                            if self.f_out.closed:
-                                logging.warn('f_out is closed')
-                            self.f_out.write(audio_data)
-                    except sf.SoundFileRuntimeError as e:
-                        logging.error(e)
+                if self.should_write_audio:
+                    self.write_audio_data(audio_data)
+                    t_now = time.time()
+
+                    if self.cut_triggered:
+                        if self.stop_delay_start_t:
+                            if t_now - self.stop_delay_start_t > self.stop_delay:
+                                self.cut_triggered = False
+                                self.stop_delay_start_t = None
+                                self.close_soundfile_and_emit_transcript('cut_recording')
+                                self.fname_out, self.f_out = self.open_new_soundfile()
+                        else:
+                            self.stop_delay_start_t = time.time()
+
+                    if self.stop_triggered:
+                        self.stop_triggered = False
+                        self.should_write_audio = False
+                        self.close_soundfile_and_emit_transcript('stop_recording')
+                        self.f_out = None
+                        self.fname_out = None
+                        self.update_recording_status.emit(False)
 
     def run(self):
         logging.info("starting RecordingThread (but recording is not enabled)")
@@ -124,27 +169,53 @@ class RecordingThread(QThread):
                 # self.update_status.emit(f"Error: {str(e)}")
             QThread.msleep(10)
 
-    def start_recording(self):
-        logging.debug("start_recording")
-        self.fname_out = tempfile.mktemp(prefix='out_', suffix='.wav', dir=self.tmpdir)
-        self.fname_out = aipacenotes.util.normalize_path(self.fname_out)
-        self.f_out = sf.SoundFile(self.fname_out, mode='x', samplerate=self.samplerate, channels=self.channels)
-        self.should_record = True
-        self.update_recording_status.emit(True)
-        return self.fname_out
+    def open_new_soundfile(self):
+        fname_out = tempfile.mktemp(prefix='out_', suffix='.wav', dir=self.tmpdir)
+        fname_out = aipacenotes.util.normalize_path(fname_out)
+        f_out = sf.SoundFile(fname_out, mode='x', samplerate=self.samplerate, channels=self.channels)
+        return fname_out, f_out
 
-    def stop_recording(self, src, vehicle_pos=None):
-        logging.debug("stop_recording")
-        if vehicle_pos is False:
-            vehicle_pos = None
-
-        self.should_record = False
+    def close_soundfile_and_emit_transcript(self, src):
         if self.f_out:
             self.f_out.close()
-            transcript = Transcript(src, self.fname_out, vehicle_pos)
+            transcript = Transcript(src, self.fname_out, self.last_vehicle_pos)
+            self.last_vehicle_pos = None
             self.transcript_created.emit(transcript)
-        self.f_out = None
-        self.update_recording_status.emit(False)
+        else:
+            logging.warn("close_soundfile_and_emit_transcript: f_out was unexpectedly None")
+
+    def set_vehicle_pos(self, vehicle_pos):
+        if vehicle_pos is False:
+            vehicle_pos = None
+        self.last_vehicle_pos = vehicle_pos
+
+    def start_recording(self):
+        logging.debug("start_recording")
+
+        self.update_recording_status.emit(True)
+
+        self.fname_out, self.f_out = self.open_new_soundfile()
+        self.should_write_audio = True
+
+    def stop_recording(self, vehicle_pos=None):
+        logging.debug("stop_recording")
+        self.set_vehicle_pos(vehicle_pos)
+        self.stop_triggered = True
+
+    def cut_recording(self, vehicle_pos=None):
+        logging.debug("cut_recording")
+
+        self.set_vehicle_pos(vehicle_pos)
+
+        # whenever you cut, recording starts.
+        self.update_recording_status.emit(True)
+
+        if self.should_write_audio: # ie, is already recording?
+            self.cut_triggered = True
+        else: # the same as start_recording.
+            self.fname_out, self.f_out = self.open_new_soundfile()
+            self.should_write_audio = True
+            self.cut_triggered = False
 
     def stop(self):
         logging.debug("RecordingThread stopping")

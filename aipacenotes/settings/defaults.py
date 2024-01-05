@@ -10,6 +10,7 @@ default_settings = {
     'settings_path_user': '$settings_dir/settings.json',
     'temp_dir':           '$beam_user_home/temp/aipacenotes',
     'transcript_fname':   '$settings_dir/transcript.json',
+    'recording_cut_delay': 0.3,
     'voice_files': [
         '$mods_dir/repo/aipacenotes.zip/settings/aipacenotes/default.voices.json',
         '$mods_dir/aipacenotes.zip/settings/aipacenotes/default.voices.json',
