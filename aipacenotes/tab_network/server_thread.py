@@ -1,13 +1,10 @@
-import time
-import threading
-
 from PyQt6.QtCore import (
     QThread,
     pyqtSignal,
 )
 
-from aipacenotes import client as aip_client
 from aipacenotes.server import Server
+import aipacenotes.util
 
 class ServerThread(QThread):
 
@@ -22,8 +19,8 @@ class ServerThread(QThread):
 
     def run(self):
         server = Server(self)
-        server.run(debug=True)
-    
+        server.run(debug=aipacenotes.util.is_dev())
+
     def _on_recording_start(self, vehicle_pos):
         print("SeverThread._on_recording_start")
         self.on_recording_start.emit(vehicle_pos)
@@ -31,14 +28,14 @@ class ServerThread(QThread):
     def _on_recording_stop(self, vehicle_pos):
         print("SeverThread._on_recording_stop")
         self.on_recording_stop.emit(vehicle_pos)
- 
+
     def _on_recording_cut(self, vehicle_pos):
         print("SeverThread._on_recording_cut")
         self.on_recording_cut.emit(vehicle_pos)
- 
+
     def _on_get_transcript(self, id):
         print("SeverThread._on_get_transcript")
         return self.latest_transcript_text
-    
+
     def set_latest_transcript(self, txt):
         self.latest_transcript_text = txt

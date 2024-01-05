@@ -29,13 +29,28 @@ def exception_hook(exc_type, exc_value, exc_traceback):
    )
    sys.exit()
 
-def set_up_logger():
-    print(f"AIP_DEV is {is_dev()}")
 
+def rotate_file(file_path, max_rotation):
+    if os.path.isfile(file_path):
+        base, ext = os.path.splitext(file_path)  # Separate the extension from the path
+        i = max_rotation - 1
+        os.remove(f"{base}.{i+1}{ext}")
+
+        while i > 0:
+            src = f"{base}.{i}{ext}"
+            dst = f"{base}.{i+1}{ext}"
+            if os.path.isfile(src):
+                os.rename(src, dst)
+            i -= 1
+
+        os.rename(file_path, f"{base}.1{ext}")
+
+def set_up_logger():
     numba_logger = logging.getLogger('numba')
     numba_logger.setLevel(logging.WARNING)
 
-    if is_dev():
+    if aipacenotes.util.is_dev():
+        print(f"AIP_DEV is {aipacenotes.util.is_dev()}")
         logging.basicConfig(
             stream=sys.stdout,
             level=logging.DEBUG,
@@ -43,11 +58,12 @@ def set_up_logger():
             datefmt='%Y-%m-%dT%H:%M:%S%z'
         )
     else:
-        date_time_obj = datetime.datetime.now()
-        timestamp_str = date_time_obj.strftime("%d-%b-%Y_%H_%M_%S")
+        # date_time_obj = datetime.datetime.now()
+        # timestamp_str = date_time_obj.strftime("%d-%b-%YT%H-%M-%S")
 
         hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
-        fname_log = 'aipacenotes-{}.log'.format(timestamp_str)
+        # fname_log = 'aipacenotes-{}.log'.format(timestamp_str)
+        fname_log = 'aipacenotes.log'
 
         dirname_tmp = '{}/AppData/Local/BeamNG.drive/latest/temp'.format(hom)
         dirname_tmp = aipacenotes.settings_manager.expand_windows_symlinks(dirname_tmp)
@@ -62,9 +78,29 @@ def set_up_logger():
 
         filename = '{}/{}'.format(dirname_aip, fname_log)
 
-        print(f"log file: {filename}")
-        print(f"Check that file for errors if you encounter a problem.")
-        logging.basicConfig(filename=filename, level=logging.DEBUG)
+        rotate_file(filename, 3)
+
+        notice_fname = filename.replace('/', '\\')
+
+        print("")
+        print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(f"!! NOTICE")
+        print(f"!! Thank you for using my software.")
+        print(f"!! If there are any errors or crashes, check the log file in the BeamNG user dir at temp/aipacenotes/.")
+        print(f"!!")
+        print(f"!!   log file: {notice_fname}")
+        print(f"!!")
+        print(f"!! DM me on the BeamNG forums. My handle is dirtwheel.")
+        print(f"!!")
+        print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("")
+
+        logging.basicConfig(
+            filename=filename,
+            level=logging.DEBUG,
+            format='%(asctime)s %(levelname)s %(message)s',
+            datefmt='%Y-%m-%dT%H:%M:%S%z'
+        )
         sys.excepthook = exception_hook
 
 def start_app():
@@ -78,9 +114,6 @@ def start_app():
     w.showMaximized()
     w.show()
     app.exec()
-
-def is_dev():
-    return os.environ.get('AIP_DEV', 'f') == 't'
 
 def main():
     set_windows_app_id()

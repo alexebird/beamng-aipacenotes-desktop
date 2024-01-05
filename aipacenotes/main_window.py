@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
         self.tab_widget = QTabWidget()
         self.tab_widget.addTab(self.pacenotes_tab, "Pacenotes")
         self.tab_widget.addTab(self.network_tab, "Network")
-        i = self.tab_widget.addTab(self.transcribe_tab, "Voice")
+        self.tab_widget.addTab(self.transcribe_tab, "Voice")
         # self.tab_widget.setCurrentWidget(self.transcribe_tab)
 
         self.top_lvl_widget = QWidget()
@@ -62,10 +62,10 @@ class MainWindow(QMainWindow):
         self.top_lvl_layout.addWidget(self.status_bar)
 
         self.setCentralWidget(self.top_lvl_widget)
-    
+
     def things_to_stop(self):
         return [
             # self.pacenotes_tab.timer_thread.stop,
-            # self.pacenotes_tab.task_manager.shutdown, 
+            # self.pacenotes_tab.task_manager.shutdown,
             self.transcribe_tab.recording_thread.stop,
         ]

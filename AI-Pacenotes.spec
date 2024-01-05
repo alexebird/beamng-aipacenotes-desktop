@@ -26,7 +26,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='AI-Pacenotes',
+    name='AI-Pacenotes-Desktop',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -6,6 +6,9 @@ import zipfile
 UNKNOWN_PLACEHOLDER = '[unknown]'
 APP_NAME = 'AiPacenotesDesktop'
 
+def is_dev():
+    return os.environ.get('AIP_DEV', 'f') == 't'
+
 def normalize_path(in_path):
     return os.path.normpath(in_path).replace("\\", "/")
 

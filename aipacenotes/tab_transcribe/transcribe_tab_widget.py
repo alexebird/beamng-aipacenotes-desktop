@@ -192,7 +192,6 @@ class TranscribeTabWidget(QWidget):
 
         button_layout.addWidget(self.recording_group_box)
 
-
         group_box = QGroupBox("Transcripts File")
         transcript_layout = QVBoxLayout()
         group_box.setLayout(transcript_layout)

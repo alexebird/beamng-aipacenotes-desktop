@@ -41,18 +41,18 @@ class RecordingThread(QThread):
         self.recording_enabled = enabled
 
     def setup_tmp_dir(self):
-        if os.environ.get('AIP_DEV', 'f') == 't':
+        if aipacenotes.util.is_dev():
             self.tmpdir = 'tmp\\audio'
         else:
             self.tmpdir = self.settings_manager.get_tempdir()
 
-        for filename in os.listdir(self.tmpdir):
-            file_path = os.path.join(self.tmpdir, filename)
-            try:
-                if os.path.isfile(file_path):
-                    os.unlink(file_path)
-            except Exception as e:
-                print(f"Failed to delete {file_path}. Reason: {e}")
+        # for filename in os.listdir(self.tmpdir):
+        #     file_path = os.path.join(self.tmpdir, filename)
+        #     try:
+        #         if os.path.isfile(file_path):
+        #             os.unlink(file_path)
+        #     except Exception as e:
+        #         print(f"Failed to delete {file_path}. Reason: {e}")
 
     def set_device(self, device):
         self.device = device

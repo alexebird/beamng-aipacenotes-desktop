@@ -35,7 +35,7 @@ class Server:
             transcript_text = self.callback_obj._on_get_transcript(id)
             return jsonify({"msg": f"got transcript with id={id}", "transcript": transcript_text})
 
-    def run(self, debug=True):
+    def run(self, debug):
         self.app.run(port=self.port, debug=debug, use_reloader=False)
 
 if __name__ == '__main__':
