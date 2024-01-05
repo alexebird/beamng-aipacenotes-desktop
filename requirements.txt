@@ -1,9 +1,8 @@
-PyQt6==6.5.1
-requests==2.31.0
-pvrecorder==1.2.1
+PyQt6==6.6.1
 flask==3.0.0
-# scipy
-# librosa
-audiomentations
-sounddevice
-soundfile
+numpy==1.26.3
+pvrecorder==1.2.1
+pywin32==306
+requests==2.31.0
+sounddevice==0.4.6
+soundfile==0.12.1

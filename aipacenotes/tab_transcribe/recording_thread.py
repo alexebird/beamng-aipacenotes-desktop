@@ -1,5 +1,4 @@
 import logging
-import os
 import queue
 import tempfile
 import time
@@ -21,11 +20,11 @@ class RecordingThread(QThread):
     transcript_created = pyqtSignal(Transcript)
     audio_signal_detected = pyqtSignal(bool)
 
-    def __init__(self, settings_manager):
+    def __init__(self, settings_manager, device):
         super(RecordingThread, self).__init__()
 
         self.settings_manager = settings_manager
-        self.device = None
+        self.device = device
         self.samplerate = 16000
         self.channels = 1
         self.f_out = None
@@ -35,7 +34,7 @@ class RecordingThread(QThread):
         self.stop_triggered = False
         self.last_vehicle_pos = None
         self.q = queue.Queue()
-        self.recording_enabled = False
+        self.recording_enabled = True
         self.t_monitor_update = time.time()
 
         # add little delay before ending a recording to make the UX of hitting
@@ -44,12 +43,10 @@ class RecordingThread(QThread):
         self.stop_delay = self.settings_manager.get_recording_cut_delay()
         self.stop_delay_start_t = None
 
-        self.setup_tmp_dir()
+        self.log_debounce_delay = 10
+        self.last_debounced_log_t = time.time()
 
-    def set_recording_enabled(self, enabled):
-        if not enabled:
-            self.stop_recording('recording_thread_internal')
-        self.recording_enabled = enabled
+        self.setup_tmp_dir()
 
     def setup_tmp_dir(self):
         if aipacenotes.util.is_dev():
@@ -65,8 +62,11 @@ class RecordingThread(QThread):
         #     except Exception as e:
         #         print(f"Failed to delete {file_path}. Reason: {e}")
 
-    def set_device(self, device):
-        self.device = device
+    def log_with_debounce(self, msg):
+        t_now = time.time()
+        if t_now - self.last_debounced_log_t > self.log_debounce_delay:
+            self.last_debounced_log_t = t_now
+            logging.warn(msg)
 
     def analyze_frame_for_monitor(self, frame, threshold=0.001):
         # Assuming frame is a NumPy array
@@ -124,14 +124,17 @@ class RecordingThread(QThread):
                 QThread.msleep(10)
 
                 audio_data = self.read_audio_data_from_buffer()
-                if audio_data is None:
-                    # if there's no audio data, then we can't do anything anyway, so just continue.
-                    continue
 
                 # update the monitor with the latest batch of audio data.
-                self.handle_monitoring(audio_data)
+                if audio_data is not None:
+                    self.handle_monitoring(audio_data)
 
                 if self.should_write_audio:
+                    if audio_data is None:
+                        # if there's no audio data, then we can't do anything anyway, so just continue.
+                        self.log_with_debounce("no audio data. is your mic plugged in?")
+                        continue
+
                     self.write_audio_data(audio_data)
                     t_now = time.time()
 
@@ -146,15 +149,20 @@ class RecordingThread(QThread):
                             self.stop_delay_start_t = time.time()
 
                     if self.stop_triggered:
-                        self.stop_triggered = False
-                        self.should_write_audio = False
-                        self.close_soundfile_and_emit_transcript('stop_recording')
-                        self.f_out = None
-                        self.fname_out = None
-                        self.update_recording_status.emit(False)
+                        if self.stop_delay_start_t:
+                            if t_now - self.stop_delay_start_t > self.stop_delay:
+                                self.stop_triggered = False
+                                self.stop_delay_start_t = None
+                                self.should_write_audio = False
+                                self.close_soundfile_and_emit_transcript('stop_recording')
+                                self.f_out = None
+                                self.fname_out = None
+                                self.update_recording_status.emit(False)
+                        else:
+                            self.stop_delay_start_t = time.time()
 
     def run(self):
-        logging.info("starting RecordingThread (but recording is not enabled)")
+        logging.info("starting RecordingThread")
         while self.isInterruptionRequested() == False:
             try:
                 if self.recording_enabled and self.device:
@@ -168,6 +176,7 @@ class RecordingThread(QThread):
                 logging.exception("RecordingThread error")
                 # self.update_status.emit(f"Error: {str(e)}")
             QThread.msleep(10)
+        self.audio_signal_detected.emit(False)
 
     def open_new_soundfile(self):
         fname_out = tempfile.mktemp(prefix='out_', suffix='.wav', dir=self.tmpdir)

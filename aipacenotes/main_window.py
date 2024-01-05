@@ -70,5 +70,5 @@ class MainWindow(QMainWindow):
         return [
             # self.pacenotes_tab.timer_thread.stop,
             # self.pacenotes_tab.task_manager.shutdown,
-            self.transcribe_tab.recording_thread.stop,
+            self.transcribe_tab.stop_recording_thread,
         ]

@@ -1,7 +1,6 @@
 import logging
 import time
 
-from .rally_file import Pacenote
 from aipacenotes import client as aip_client
 
 def pacenote_job_id(pacenote):

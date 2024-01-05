@@ -60,7 +60,6 @@ class Transcript:
 
     def transcribe(self):
         speech = SpeechToText(self.fname)
-        # speech.trim_silence()
         txt = speech.transcribe()
         if txt is None:
             txt = aipacenotes.util.UNKNOWN_PLACEHOLDER
