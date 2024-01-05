@@ -8,8 +8,9 @@ from PyQt6.QtWidgets import (
     QTabWidget,
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
 )
+
+import logging
 
 from aipacenotes.tab_pacenotes import PacenotesTabWidget
 from aipacenotes.tab_network import NetworkTabWidget
@@ -41,6 +42,8 @@ class MainWindow(QMainWindow):
         # Managers live for the lifetime of the program so they can detect changes across pacenote file scans.
         self.settings_manager = SettingsManager(self.status_bar)
         self.settings_manager.load()
+
+        logging.info(f"BeamNG user dir: {self.settings_manager.get_beam_user_home()}")
 
         self.pacenotes_tab = PacenotesTabWidget(self.settings_manager)
         self.network_tab = NetworkTabWidget(self.settings_manager)

@@ -86,6 +86,9 @@ class SettingsManager():
 
         return output_string
 
+    def get_beam_user_home(self):
+        return self.settings['beam_user_home']
+
     def get_recording_cut_delay(self):
         return self.settings['recording_cut_delay']
 

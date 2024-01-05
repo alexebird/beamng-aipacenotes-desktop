@@ -322,6 +322,7 @@ class TranscribeTabWidget(QWidget):
         self.recording_thread.cut_recording(vehicle_pos)
 
     def on_transcript_created(self, transcript):
+        transcript.set_beam_fname(self.settings_manager.get_beam_user_home())
         self.transcript_store.add(transcript)
         self.table_model.layoutChanged.emit()
         self.task_manager.submit(self.run_transcribe, transcript)

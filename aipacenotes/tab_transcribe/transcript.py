@@ -14,6 +14,7 @@ class Transcript:
     def __init__(self, src, fname, vehicle_pos, ts=time.time(), txt=None, success=False):
         self.src = src
         self.fname = fname
+        self.beam_fname = None
         self.vehicle_pos = vehicle_pos
         self.ts = ts
         self.txt = txt
@@ -25,9 +26,13 @@ class Transcript:
             'success': self.success,
             'src': self.src,
             'file': self.fname,
+            'beamng_file': self.beam_fname,
             'timestamp': self.ts,
             'vehicle_pos': self.vehicle_pos,
         }
+
+    def set_beam_fname(self, beam_user_home):
+        self.beam_fname = self.fname.replace(beam_user_home, '')
 
     def __str__(self):
         return f"{self.txt}, {self.ts}, {self.fname}"
