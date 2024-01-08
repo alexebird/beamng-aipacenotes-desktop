@@ -11,7 +11,7 @@ cd C:\Users\bird\Desktop\beam-bird\gh_repos\beamng-aipacenotes-desktop
 ```
 3. activate virtualenv. run:
 ```
-call C:\Users\bird\.virtualenvs\aipacenotes\Scripts\activate.bat
+.\aip\Scripts\activate
 ```
 4. run app:
 ```

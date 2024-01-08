@@ -102,6 +102,7 @@ class Notebook:
         self.notebook_file = notebook_file
         self.data = data
         self._pacenotes = None
+        # self._static_pacenotes = None
 
     def __str__(self):
         return self.name()
@@ -143,9 +144,54 @@ class Notebook:
                         pacenote = Pacenote(self, pn_data_copy)
                         pacenotes.append(pacenote)
 
+            for pacenote_data in self.data.get('static_pacenotes', []):
+                # for each note language, make a copy of the whole note data.
+                for lang,note_data in pacenote_data['notes'].items():
+                    if codriver_data['language'] == lang:
+                        pn_data_copy = copy.deepcopy(pacenote_data)
+                        pn_data_copy['note'] = concat_note_data(note_data)
+                        pn_data_copy['language'] = lang
+                        pn_data_copy['codriver'] = codriver_data # copy.deepcopy(codriver_data)
+                        pacenote = Pacenote(self, pn_data_copy)
+                        pacenotes.append(pacenote)
+
+
+
         self._pacenotes = pacenotes
 
         return self._pacenotes
+
+    # def static_pacenotes(self, use_cache=True):
+    #     if not use_cache:
+    #         self._static_pacenotes = None
+    #
+    #     if self._static_pacenotes:
+    #         return self._static_pacenotes
+    #
+    #     codrivers = self.data['codrivers']
+    #     pacenotes = []
+    #
+    #     def concat_note_data(note_data):
+    #         before = note_data.get('before', '')
+    #         note   = note_data.get('note', '')
+    #         after  = note_data.get('after', '')
+    #         return ' '.join([before, note, after]).strip()
+    #
+    #     for codriver_data in codrivers:
+    #         for pacenote_data in self.data['static_pacenotes']:
+    #             # for each note language, make a copy of the whole note data.
+    #             for lang,note_data in pacenote_data['notes'].items():
+    #                 if codriver_data['language'] == lang:
+    #                     pn_data_copy = copy.deepcopy(pacenote_data)
+    #                     pn_data_copy['note'] = concat_note_data(note_data)
+    #                     pn_data_copy['language'] = lang
+    #                     pn_data_copy['codriver'] = codriver_data # copy.deepcopy(codriver_data)
+    #                     pacenote = Pacenote(self, pn_data_copy)
+    #                     pacenotes.append(pacenote)
+    #
+    #     self._static_pacenotes = pacenotes
+    #
+    #     return self._static_pacenotes
 
     def pacenotes_dir(self):
         return aipacenotes.util.normalize_path(os.path.join(self.notebook_file.pacenotes_dir(), self.clean_name()))

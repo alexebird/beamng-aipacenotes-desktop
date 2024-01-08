@@ -68,12 +68,24 @@ class PacenotesTabWidget(QWidget):
         self.tree = PacenotesTreeWidget(self.settings_manager)
         self.tree.notebookSelectionChanged.connect(self.on_tree_notebook_selection_changed)
 
+        self.btn_refresh_notebook = QPushButton("Refresh Tree")
+        self.btn_refresh_notebook.setFixedWidth(90)
+        self.btn_refresh_notebook.clicked.connect(self.on_btn_refresh_notebook_pressed)
+        # table_controls_layout.addWidget(self.btn_refresh_notebook)
+        # table_controls_layout.setAlignment(self.btn_refresh_notebook, Qt.AlignmentFlag.AlignLeft)
+
         tree_wrapper = QWidget()
-        layout = QHBoxLayout()
+        layout = QVBoxLayout()
+        layout.addWidget(self.btn_refresh_notebook)
         layout.addWidget(self.tree)
         tree_wrapper.setLayout(layout)
 
         self.splitter.addWidget(tree_wrapper)
+
+        layout = QVBoxLayout()
+
+        self.notebook_info_label = QLabel("")
+        layout.addWidget(self.notebook_info_label)
 
         self.notebook_table = NotebookTable()
 
@@ -86,16 +98,11 @@ class PacenotesTabWidget(QWidget):
         self.notebook_table.setColumnWidth(4, 150)
         self.notebook_table.setColumnWidth(5, 250)
         self.notebook_table.play_clicked.connect(self.play_audio)
+        layout.addWidget(self.notebook_table)
 
         self.table_controls = QWidget()
-        table_controls_layout = QHBoxLayout(self.table_controls)
-        self.table_controls.setFixedHeight(50)
-
-        self.btn_refresh_notebook = QPushButton("Refresh Tree")
-        self.btn_refresh_notebook.setFixedWidth(90)
-        self.btn_refresh_notebook.clicked.connect(self.on_btn_refresh_notebook_pressed)
-        table_controls_layout.addWidget(self.btn_refresh_notebook)
-        table_controls_layout.setAlignment(self.btn_refresh_notebook, Qt.AlignmentFlag.AlignLeft)
+        # table_controls_layout = QHBoxLayout(self.table_controls)
+        # self.table_controls.setFixedHeight(50)
 
         right_pane = QWidget()
         right_layout = QVBoxLayout(right_pane)
@@ -104,13 +111,20 @@ class PacenotesTabWidget(QWidget):
         header_height = self.notebook_table.horizontalHeader().height()
         self.pacenotes_progress_bar = VerticalColorSegmentProgressBar(header_height)
         prog_layout.addWidget(self.pacenotes_progress_bar)
-        prog_layout.addWidget(self.notebook_table)
+        # prog_layout.addWidget(self.notebook_table)
+        prog_layout.addLayout(layout)
 
         right_layout.addWidget(self.table_controls)
         right_layout.addLayout(prog_layout)
         self.splitter.addWidget(right_pane)
 
         self.update_jobs_store = UpdateJobsStore(self.settings_manager)
+
+
+        layout = QVBoxLayout()
+
+        self.notebook_info_label = QLabel("")
+        layout.addWidget(self.notebook_info_label)
 
         self.jobs_model = UpdateJobsTableModel(self.update_jobs_store)
         jobs_table = UpdateJobsTable()
@@ -127,7 +141,14 @@ class PacenotesTabWidget(QWidget):
         header_height = jobs_table.horizontalHeader().height()
         self.jobs_progress_bar = VerticalColorSegmentProgressBar(header_height)
         prog_layout.addWidget(self.jobs_progress_bar)
-        prog_layout.addWidget(jobs_table)
+
+        layout = QVBoxLayout()
+        self.jobs_info_label = QLabel("")
+        layout.addWidget(self.jobs_info_label)
+        layout.addWidget(jobs_table)
+
+        # prog_layout.addWidget(jobs_table)
+        prog_layout.addLayout(layout)
         bottom_widget = QWidget()
         bottom_widget.setLayout(prog_layout)
 
@@ -153,7 +174,17 @@ class PacenotesTabWidget(QWidget):
     def on_tree_notebook_selection_changed(self, notebook_file):
         self.notebook_table_model.setNotebookFile(notebook_file)
         self.notebook_table_model.layoutChanged.emit()
+        self.update_notebook_info_label()
         self.refresh_pacenotes_table_progress()
+
+    def update_notebook_info_label(self):
+        self.notebook_info_label.setText(f"# of pacenotes: {self.notebook_table_model.rowCount()}")
+
+    def update_jobs_info_label(self):
+        counts = [[k,v] for k,v in self.update_jobs_store.count_by_status().items()]
+        counts.sort(key=lambda pair: pair[0])
+        count_str = [f"{cnt[0]}={cnt[1]}" for cnt in counts]
+        self.jobs_info_label.setText(f"# of jobs: {' / '.join(count_str)}")
 
     def play_audio(self, row):
         def _play(fname):
@@ -175,9 +206,9 @@ class PacenotesTabWidget(QWidget):
             self.tree.clear()
             self.tree.populate()
             self.tree_refreshed.emit()
-            # self.refresh_pacenotes()
             self.notebook_table_model.setNotebookFile(None)
             self.notebook_table_model.layoutChanged.emit()
+            self.update_notebook_info_label()
 
         self.task_manager.submit(_special_button_refresh)
 
@@ -190,11 +221,17 @@ class PacenotesTabWidget(QWidget):
         notebook_file.load()
         notebook = notebook_file.notebook()
 
+        # for pn in notebook.static_pacenotes():
+            # print(pn)
+
+        # combined_pacenotes = notebook.pacenotes().copy() + notebook.static_pacenotes().copy()
+
         for pacenote in notebook.pacenotes():
             if pacenote.needs_update():
                 job = self.update_jobs_store.add_job(pacenote)
                 # self.update_jobs_store.print()
                 self.jobs_model.layoutChanged.emit()
+                self.update_jobs_info_label()
 
                 def _run_job(job):
                     job.run(self.job_run_finished)
@@ -211,6 +248,8 @@ class PacenotesTabWidget(QWidget):
         self.jobs_model.layoutChanged.emit()
         self.notebook_table_model.setNotebookFile(notebook_file)
         self.notebook_table_model.layoutChanged.emit()
+        self.update_notebook_info_label()
+        self.update_jobs_info_label()
         self.task_manager.gc_finished()
 
     def refresh_pacenotes_table_progress(self):
@@ -293,6 +332,8 @@ class PacenotesTabWidget(QWidget):
     def on_job_run_finished(self, job):
         self.jobs_model.layoutChanged.emit()
         self.notebook_table_model.layoutChanged.emit()
+        self.update_notebook_info_label()
+        self.update_jobs_info_label()
         self.refresh_pacenotes_table_progress()
         self.refresh_jobs_table_progress()
 

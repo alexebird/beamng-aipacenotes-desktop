@@ -183,6 +183,16 @@ class UpdateJobsStore:
 
         return rv
 
+    def count_by_status(self):
+        counts = {}
+
+        for job in self.jobs:
+            if job.status() not in counts:
+                counts[job.status()] = 0
+            counts[job.status()] = counts[job.status()] + 1
+
+        return counts
+
     def print(self):
         logging.debug("UpdateJobsStore")
         logging.debug("  pacenote_ids_lock")
