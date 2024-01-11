@@ -1,12 +1,28 @@
 import os
+import platform
 import re
-import uuid
+# import uuid
 import zipfile
 import logging
 
+# import aipacenotes
+# import aipacenotes.settings
+
 AUTOFILL_BLOCKER = '#'
 UNKNOWN_PLACEHOLDER = '[unknown]'
-APP_NAME = 'AiPacenotesDesktop'
+
+def is_windows():
+    return platform.system() == 'Windows'
+
+def is_mac():
+    return not is_windows()
+
+# def create_uuid_file():
+#     if is_windows():
+#         write_uuid_to_appdata()
+#         return read_uuid_from_appdata() or "heh"
+#     else:
+#         return uuid.uuid4()
 
 def is_dev():
     return os.environ.get('AIP_DEV', 'f') == 't'
@@ -61,27 +77,18 @@ def open_file_explorer(file_path):
     logging.info(f"opening {file_path}")
     os.startfile(file_path)
 
-def write_uuid_to_appdata():
-    appdata_dir = os.getenv('APPDATA')
-    app_dir = os.path.join(appdata_dir, APP_NAME)
-    file_path = os.path.join(app_dir, 'uuid.txt')
+def byte_str(num_bytes):
+    if isinstance(num_bytes, str):
+        return num_bytes
 
-    os.makedirs(app_dir, exist_ok=True)
-
-    if not os.path.exists(file_path):
-        random_uuid = uuid.uuid4()
-        with open(file_path, 'w') as file:
-            file.write(str(random_uuid))
-
-    return file_path
-
-def read_uuid_from_appdata():
-    appdata_dir = os.getenv('APPDATA')
-    file_path = os.path.join(appdata_dir, APP_NAME, 'uuid.txt')
-
-    try:
-        with open(file_path, 'r') as file:
-            uuid_str = file.read()
-            return uuid_str
-    except FileNotFoundError:
-        return None
+    if num_bytes < 1024:
+        # If the size is less than 1024 bytes, return it in bytes
+        return f"{num_bytes} B"
+    elif num_bytes < 1048576:
+        # If the size is less than 1048576 bytes (1024 KB), return it in kilobytes
+        kilobytes = num_bytes / 1024
+        return f"{kilobytes:.1f} KB"
+    else:
+        # Otherwise, return the size in megabytes
+        megabytes = num_bytes / 1048576  # 1024 * 1024
+        return f"{megabytes:.1f} MB"
