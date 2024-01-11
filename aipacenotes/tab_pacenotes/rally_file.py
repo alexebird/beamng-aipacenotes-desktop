@@ -128,9 +128,20 @@ class Notebook:
 
         def concat_note_data(note_data):
             before = note_data.get('before', '')
+            if before == aipacenotes.util.AUTOFILL_BLOCKER:
+                before = ''
             note   = note_data.get('note', '')
+            if note == aipacenotes.util.AUTOFILL_BLOCKER:
+                note = ''
             after  = note_data.get('after', '')
-            return ' '.join([before, note, after]).strip()
+            if after == aipacenotes.util.AUTOFILL_BLOCKER:
+                after = ''
+
+            rv = ' '.join([before, note, after]).strip()
+            if rv == '':
+                return aipacenotes.util.UNKNOWN_PLACEHOLDER
+
+            return rv
 
         for codriver_data in codrivers:
             for pacenote_data in self.data['pacenotes']:
