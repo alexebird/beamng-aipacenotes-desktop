@@ -6,19 +6,16 @@ from urllib.parse import urljoin
 import aipacenotes.util
 
 # TODO should be in settings.json
-# base_url = "https://pacenotes-concurrent-mo5q6vt2ea-uw.a.run.app"
-# base_url = "http://localhost:8080"
-base_url = "https://aipacenotes.alxb.us"
-prefix = 'f'
+# BASE_URL = "http://localhost:8080"
 
-create_pacenotes_audio_url = urljoin(base_url, 'f/pacenotes/audio/create')
-healthcheck_url = urljoin(base_url, 'f/health')
-transcribe_url = urljoin(base_url, 'f/transcribe')
+# the flask app is mapped to the prefix `/f` by nginx.
+BASE_URL = "https://aipacenotes.alxb.us/f"
+
+create_pacenotes_audio_url = urljoin(BASE_URL, 'pacenotes/audio/create')
+healthcheck_url = urljoin(BASE_URL, 'health')
+transcribe_url = urljoin(BASE_URL, 'transcribe')
 
 last_healthcheck_ts = 0.0
-
-aipacenotes.util.write_uuid_to_appdata()
-uuid = aipacenotes.util.read_uuid_from_appdata() or "heh"
 
 def post_create_pacenotes_audio(pacenote_note, voice_config):
     data = {
@@ -28,7 +25,7 @@ def post_create_pacenotes_audio(pacenote_note, voice_config):
 
     headers = {
         "Content-Type": "application/json",
-        "aip-uuid": uuid,
+        "aip-uuid": aipacenotes.util.THE_UUID,
     }
 
     response = requests.post(create_pacenotes_audio_url, data=json.dumps(data), headers=headers)
@@ -39,7 +36,7 @@ def get_healthcheck():
     global last_healthcheck_ts
     log_str = f"aip-client: GET {healthcheck_url}"
     last_healthcheck_ts = time.time()
-    headers = { "aip-uuid": uuid }
+    headers = { "aip-uuid": aipacenotes.util.THE_UUID }
     response = requests.get(healthcheck_url, headers=headers, timeout=120)
     logging.info(f"{log_str} -> {response.status_code}")
 
@@ -58,7 +55,7 @@ def post_transcribe(fname):
     with open(fname, 'rb') as f:
         files = {'audio': f}
         headers = {
-            "aip-uuid": uuid,
+            "aip-uuid": aipacenotes.util.THE_UUID,
         }
         response = requests.post(transcribe_url, files=files, headers=headers)
         try:

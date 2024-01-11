@@ -1,4 +1,6 @@
 import os
+import uuid
+import platform
 import re
 import uuid
 import zipfile
@@ -7,6 +9,24 @@ import logging
 AUTOFILL_BLOCKER = '#'
 UNKNOWN_PLACEHOLDER = '[unknown]'
 APP_NAME = 'AiPacenotesDesktop'
+
+def is_windows():
+    return platform.system() == 'Windows'
+
+def is_mac():
+    return not is_windows()
+
+def create_uuid_file():
+    if is_windows():
+        write_uuid_to_appdata()
+        return read_uuid_from_appdata() or "heh"
+    else:
+        return uuid.uuid4()
+
+THE_UUID = str(create_uuid_file())
+
+def api_key():
+    return os.environ.get('API_KEY', 'set_API_KEY')
 
 def is_dev():
     return os.environ.get('AIP_DEV', 'f') == 't'
