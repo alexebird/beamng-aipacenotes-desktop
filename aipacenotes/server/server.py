@@ -20,7 +20,7 @@ class Server:
         @self.app.route('/proxy', methods=['POST'])
         def proxy_test():
             proxy_req = self.proxy_request_manager.add_request(request.json)
-            return jsonify(proxy_req.response_json())
+            return jsonify(proxy_req.response_json_for_game())
 
     def setup_recording_routes(self):
         @self.app.route('/recordings/actions/start', methods=['POST'])

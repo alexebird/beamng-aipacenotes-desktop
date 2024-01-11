@@ -76,3 +76,19 @@ def open_file_explorer(file_path):
         file_path = os.path.dirname(file_path)
     logging.info(f"opening {file_path}")
     os.startfile(file_path)
+
+def byte_str(num_bytes):
+    if isinstance(num_bytes, str):
+        return num_bytes
+
+    if num_bytes < 1024:
+        # If the size is less than 1024 bytes, return it in bytes
+        return f"{num_bytes} B"
+    elif num_bytes < 1048576:
+        # If the size is less than 1048576 bytes (1024 KB), return it in kilobytes
+        kilobytes = num_bytes / 1024
+        return f"{kilobytes:.1f} KB"
+    else:
+        # Otherwise, return the size in megabytes
+        megabytes = num_bytes / 1048576  # 1024 * 1024
+        return f"{megabytes:.1f} MB"

@@ -23,13 +23,26 @@ headers = [
 ]
 
 class ProxyRequest:
-    def __init__(self, request_body):
+    def __init__(self, request_body, api_key=None):
         self.completed = False
+        self.api_key = api_key or aipacenotes.settings.user_settings.get_api_key()
         self.uuid = str(uuid.uuid4())
         self._col_cache = []
         self.request_body = request_body
         self.response = None
+        self.response_json = None
         self.duration_ms = None
+
+    @staticmethod
+    def do_healthcheck(api_key):
+        req = ProxyRequest({
+            'created_at': datetime.now().isoformat(),
+            'method': 'GET',
+            'path': '/api/healthcheck',
+            'body': {},
+        }, api_key)
+        req.execute()
+        return req
 
     def execute(self):
         self.completed = True
@@ -40,7 +53,7 @@ class ProxyRequest:
         url = f"{BASE_URL}{self.path()}"
         headers = {
             'Content-Type': 'application/json',
-            'X-Api-Key': aipacenotes.settings.user_settings.get_api_key(),
+            'X-Api-Key': self.api_key,
             'X-Aip-Client-UUID': aipacenotes.settings.user_settings.get_uuid(),
         }
 
@@ -58,6 +71,9 @@ class ProxyRequest:
             self._request_size = len(request_body)
             self.response = requests.post(url, data=request_body, headers=headers, params=params)
 
+        if self.response:
+            self.response_json = self.response.json()
+
         end_time = time.time()
         self.duration_ms = (end_time - start_time) * 1000
 
@@ -74,8 +90,8 @@ class ProxyRequest:
                 # self.created_at(),
                 self.method(),
                 self.path(),
-                self.request_size(),
-                self.response_size(),
+                aipacenotes.util.byte_str(self.request_size()),
+                aipacenotes.util.byte_str(self.response_size()),
             ]
 
     def request_size(self):
@@ -103,7 +119,7 @@ class ProxyRequest:
         self.cache_column()
         return self._col_cache[col]
 
-    def response_json(self):
+    def response_json_for_game(self):
         return {'ok': True}
 
     def created_at(self):
@@ -121,8 +137,7 @@ class ProxyRequest:
     def response_body_tooltip_text(self):
         if self.response:
             if 'application/json' in self.response.headers.get('Content-Type', ''):
-                data = self.response.json()
-                formatted_json = json.dumps(data, indent=4)
+                formatted_json = json.dumps(self.response_json, indent=4)
                 return formatted_json
             else:
                 return self.response.text

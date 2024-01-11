@@ -14,6 +14,9 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
+    QSpacerItem,
+    QSizePolicy,
 )
 
 import logging
@@ -79,9 +82,13 @@ class MainWindow(QMainWindow):
         self.top_lvl_widget.setLayout(self.top_lvl_layout)
 
         if aipacenotes.util.is_mac():
+            hbox = QHBoxLayout()
             settings_button = QPushButton("Open Settings")
             settings_button.clicked.connect(self.open_settings_dialog)
-            self.top_lvl_layout.addWidget(settings_button)
+            spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+            hbox.addWidget(settings_button)
+            hbox.addItem(spacer)
+            self.top_lvl_layout.addLayout(hbox)
         self.top_lvl_layout.addWidget(self.tab_widget)
         self.top_lvl_layout.addWidget(self.status_bar)
 

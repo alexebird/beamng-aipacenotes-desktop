@@ -2,13 +2,14 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdi
                              QPushButton, QGroupBox, QSpacerItem, QSizePolicy)
 
 import aipacenotes.settings
+from aipacenotes.tab_network.proxy_request import ProxyRequest
 
 class SettingsDialog(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("User Settings")
         self.setLayout(QVBoxLayout())
-        self.resize(500, 150)
+        self.resize(550, 150)
 
         # GroupBox for settings
         self.settings_group = QGroupBox("AI Pacenotes API")
@@ -21,6 +22,15 @@ class SettingsDialog(QDialog):
         # self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
         # self.api_key_input.setPlaceholderText("Enter API Key")
         self.api_key_layout.addWidget(self.api_key_input)
+
+        self.test_label = QLabel("")
+        self.test_label.setFixedWidth(25)
+        self.api_key_layout.addWidget(self.test_label)
+
+        self.test_button = QPushButton("Test")
+        self.test_button.clicked.connect(self.test_api_key)
+        self.api_key_layout.addWidget(self.test_button)
+
         self.settings_layout.addLayout(self.api_key_layout)
 
         self.layout().addWidget(self.settings_group)
@@ -48,3 +58,13 @@ class SettingsDialog(QDialog):
     def save_settings(self):
         aipacenotes.settings.user_settings.set_api_key(self.api_key_input.text())
         self.accept()
+
+    def test_api_key(self):
+        # Call the do_healthcheck method when Test button is clicked
+        self.test_label.setText("...")
+        req = ProxyRequest.do_healthcheck(self.api_key_input.text())
+        if req.response_json and req.response_json.get('authed', False) == True:
+            self.test_label.setText("Ok!")
+        else:
+            self.test_label.setText("Fail!")
+        self.test_label.update()
