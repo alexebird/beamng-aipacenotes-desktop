@@ -5,6 +5,7 @@ from datetime import datetime
 import uuid
 
 import aipacenotes.util
+import aipacenotes.settings
 
 if aipacenotes.util.is_dev():
     BASE_URL = 'http://localhost:3000'
@@ -39,8 +40,8 @@ class ProxyRequest:
         url = f"{BASE_URL}{self.path()}"
         headers = {
             'Content-Type': 'application/json',
-            'X-Api-Key': aipacenotes.util.api_key(),
-            'X-Aip-Client-UUID': aipacenotes.util.THE_UUID,
+            'X-Api-Key': aipacenotes.settings.user_settings.get_api_key(),
+            'X-Aip-Client-UUID': aipacenotes.settings.user_settings.get_uuid(),
         }
 
         params = {

@@ -52,8 +52,9 @@ def set_up_logger():
     numba_logger = logging.getLogger('numba')
     numba_logger.setLevel(logging.WARNING)
 
-    if aipacenotes.util.is_dev():
+    if aipacenotes.util.is_dev() or aipacenotes.util.is_mac():
         print(f"AIP_DEV is {aipacenotes.util.is_dev()}")
+        print(f"is_mac is {aipacenotes.util.is_mac()}")
         logging.basicConfig(
             stream=sys.stdout,
             level=logging.DEBUG,
@@ -61,11 +62,7 @@ def set_up_logger():
             datefmt='%Y-%m-%dT%H:%M:%S%z'
         )
     else:
-        # date_time_obj = datetime.datetime.now()
-        # timestamp_str = date_time_obj.strftime("%d-%b-%YT%H-%M-%S")
-
         hom = os.environ.get('HOME', os.environ.get('USERPROFILE'))
-        # fname_log = 'aipacenotes-{}.log'.format(timestamp_str)
         fname_log = 'aipacenotes.log'
 
         dirname_tmp = '{}/AppData/Local/BeamNG.drive/latest/temp'.format(hom)

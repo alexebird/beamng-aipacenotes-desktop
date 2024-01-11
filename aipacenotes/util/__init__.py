@@ -1,14 +1,15 @@
 import os
-import uuid
 import platform
 import re
-import uuid
+# import uuid
 import zipfile
 import logging
 
+# import aipacenotes
+# import aipacenotes.settings
+
 AUTOFILL_BLOCKER = '#'
 UNKNOWN_PLACEHOLDER = '[unknown]'
-APP_NAME = 'AiPacenotesDesktop'
 
 def is_windows():
     return platform.system() == 'Windows'
@@ -16,17 +17,12 @@ def is_windows():
 def is_mac():
     return not is_windows()
 
-def create_uuid_file():
-    if is_windows():
-        write_uuid_to_appdata()
-        return read_uuid_from_appdata() or "heh"
-    else:
-        return uuid.uuid4()
-
-THE_UUID = str(create_uuid_file())
-
-def api_key():
-    return os.environ.get('API_KEY', 'set_API_KEY')
+# def create_uuid_file():
+#     if is_windows():
+#         write_uuid_to_appdata()
+#         return read_uuid_from_appdata() or "heh"
+#     else:
+#         return uuid.uuid4()
 
 def is_dev():
     return os.environ.get('AIP_DEV', 'f') == 't'
@@ -80,28 +76,3 @@ def open_file_explorer(file_path):
         file_path = os.path.dirname(file_path)
     logging.info(f"opening {file_path}")
     os.startfile(file_path)
-
-def write_uuid_to_appdata():
-    appdata_dir = os.getenv('APPDATA')
-    app_dir = os.path.join(appdata_dir, APP_NAME)
-    file_path = os.path.join(app_dir, 'uuid.txt')
-
-    os.makedirs(app_dir, exist_ok=True)
-
-    if not os.path.exists(file_path):
-        random_uuid = uuid.uuid4()
-        with open(file_path, 'w') as file:
-            file.write(str(random_uuid))
-
-    return file_path
-
-def read_uuid_from_appdata():
-    appdata_dir = os.getenv('APPDATA')
-    file_path = os.path.join(appdata_dir, APP_NAME, 'uuid.txt')
-
-    try:
-        with open(file_path, 'r') as file:
-            uuid_str = file.read()
-            return uuid_str
-    except FileNotFoundError:
-        return None

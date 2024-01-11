@@ -1,3 +1,8 @@
+from PyQt6.QtCore import (
+    Qt,
+    QCoreApplication,
+)
+
 from PyQt6.QtGui import (
     QAction,
     QKeySequence,
@@ -6,6 +11,7 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QMainWindow,
     QTabWidget,
+    QPushButton,
     QWidget,
     QVBoxLayout,
 )
@@ -16,21 +22,30 @@ from aipacenotes.tab_pacenotes import PacenotesTabWidget
 from aipacenotes.tab_network import NetworkTabWidget
 from aipacenotes.tab_transcribe import TranscribeTabWidget
 
-from aipacenotes.settings import SettingsManager
+from aipacenotes.settings import SettingsManager, SettingsDialog
 from aipacenotes.status_bar import StatusBarWidget
 import aipacenotes.util
+
+APP_NAME = "AI Pacenotes"
+
+QCoreApplication.setApplicationName(APP_NAME)
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
         self.resize(1200, 800)
-
-        self.setWindowTitle("AI Pacenotes")
+        self.setWindowTitle(APP_NAME)
 
         # Create a menu bar
-        self.menu = self.menuBar()
-        self.file_menu = self.menu.addMenu("File")
+        self.menu_bar = self.menuBar()
+        self.file_menu = self.menu_bar.addMenu("&File")
+        self.edit_menu = self.menu_bar.addMenu("&Edit")
+
+        settings_action = QAction("Settings", self)
+        # settings_action.setShortcut(QKeySequence("Ctrl+q"))
+        settings_action.triggered.connect(self.close)
+        self.edit_menu.addAction(settings_action)
 
         # Add action to the file menu
         exit_action = QAction("Exit", self)
@@ -51,6 +66,7 @@ class MainWindow(QMainWindow):
             self.transcribe_tab = TranscribeTabWidget(self.settings_manager, self.network_tab)
         self.network_tab = NetworkTabWidget(self.settings_manager)
 
+
         self.tab_widget = QTabWidget()
         if aipacenotes.util.is_windows():
             self.tab_widget.addTab(self.pacenotes_tab, "Pacenotes")
@@ -62,6 +78,10 @@ class MainWindow(QMainWindow):
         self.top_lvl_layout = QVBoxLayout()
         self.top_lvl_widget.setLayout(self.top_lvl_layout)
 
+        if aipacenotes.util.is_mac():
+            settings_button = QPushButton("Open Settings")
+            settings_button.clicked.connect(self.open_settings_dialog)
+            self.top_lvl_layout.addWidget(settings_button)
         self.top_lvl_layout.addWidget(self.tab_widget)
         self.top_lvl_layout.addWidget(self.status_bar)
 
@@ -76,3 +96,8 @@ class MainWindow(QMainWindow):
             ]
         else:
             return []
+
+    def open_settings_dialog(self):
+        dialog = SettingsDialog()
+        dialog.setWindowModality(Qt.WindowModality.ApplicationModal)  # Dialog will stay on top of the main window
+        dialog.exec()
