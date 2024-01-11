@@ -3,12 +3,10 @@ import pprint
 import logging
 import copy
 import os
-import win32com.client
 import re
 
 from . import defaults
 import aipacenotes.util
-
 
 def deep_merge(dict1, dict2):
     result = dict1.copy()  # Start with dict1's keys and values
@@ -34,6 +32,7 @@ def home_dir():
     return hom
 
 def expand_windows_symlinks(path):
+    import win32com.client
     shell = win32com.client.Dispatch("WScript.Shell")
     parts = []
     while True:
@@ -65,7 +64,6 @@ class SettingsManager():
 
     def __init__(self, status_bar):
         self.status_bar = status_bar
-        self.settings = self.expand_default_settings()
         self.voices = None
 
     def update_status_left(self, txt):
@@ -138,6 +136,7 @@ class SettingsManager():
 
     def load(self):
         logging.info(f"loading settings")
+        self.settings = self.expand_default_settings()
         user_settings = self.get_settings_path_user()
 
         if os.path.isfile(user_settings):

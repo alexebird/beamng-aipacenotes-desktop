@@ -41,21 +41,18 @@ class MainWindow(QMainWindow):
 
         # Managers live for the lifetime of the program so they can detect changes across pacenote file scans.
         self.settings_manager = SettingsManager(self.status_bar)
-        self.settings_manager.load()
+        # self.settings_manager.load()
 
-        logging.info(f"BeamNG user dir: {self.settings_manager.get_beam_user_home()}")
+        # logging.info(f"BeamNG user dir: {self.settings_manager.get_beam_user_home()}")
 
-        self.pacenotes_tab = PacenotesTabWidget(self.settings_manager)
+        # self.pacenotes_tab = PacenotesTabWidget(self.settings_manager)
         self.network_tab = NetworkTabWidget(self.settings_manager)
-        self.transcribe_tab = TranscribeTabWidget(self.settings_manager, self.network_tab)
-        # self.transcribe_tab.recording_thread.update_transcription.connect(self.network_tab.server_thread.set_latest_transcript)
-        # self.transcribe_tab.update_transcription.connect(self.network_tab.server_thread.set_latest_transcript)
+        # self.transcribe_tab = TranscribeTabWidget(self.settings_manager, self.network_tab)
 
         self.tab_widget = QTabWidget()
-        self.tab_widget.addTab(self.pacenotes_tab, "Pacenotes")
+        # self.tab_widget.addTab(self.pacenotes_tab, "Pacenotes")
         self.tab_widget.addTab(self.network_tab, "Network")
-        self.tab_widget.addTab(self.transcribe_tab, "Voice")
-        # self.tab_widget.setCurrentWidget(self.transcribe_tab)
+        # self.tab_widget.addTab(self.transcribe_tab, "Voice")
 
         self.top_lvl_widget = QWidget()
         self.top_lvl_layout = QVBoxLayout()
@@ -70,5 +67,5 @@ class MainWindow(QMainWindow):
         return [
             # self.pacenotes_tab.timer_thread.stop,
             # self.pacenotes_tab.task_manager.shutdown,
-            self.transcribe_tab.stop_recording_thread,
+            # self.transcribe_tab.stop_recording_thread,
         ]

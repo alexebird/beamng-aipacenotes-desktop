@@ -36,11 +36,19 @@ curl -H'Content-type: application/json' https://pacenotes-concurrent-mo5q6vt2ea-
 virtualenvs
 ---
 
-Creation:
+Creation (windows):
 
 ```
 cd C:\Users\bird\Desktop\beam-bird\gh_repos\beamng-aipacenotes-desktop
 python -m venv aip
 .\aip\Scripts\activate
+pip install -r requirements.txt
+```
+
+Mac
+```
+pip install virtualenv
+virtualenv aip
+source aip/bin/activate
 pip install -r requirements.txt
 ```

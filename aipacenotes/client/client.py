@@ -17,8 +17,7 @@ transcribe_url = urljoin(base_url, 'f/transcribe')
 
 last_healthcheck_ts = 0.0
 
-aipacenotes.util.write_uuid_to_appdata()
-uuid = aipacenotes.util.read_uuid_from_appdata() or "heh"
+the_uuid = aipacenotes.util.THE_UUID
 
 def post_create_pacenotes_audio(pacenote_note, voice_config):
     data = {
@@ -28,7 +27,7 @@ def post_create_pacenotes_audio(pacenote_note, voice_config):
 
     headers = {
         "Content-Type": "application/json",
-        "aip-uuid": uuid,
+        "aip-uuid": the_uuid,
     }
 
     response = requests.post(create_pacenotes_audio_url, data=json.dumps(data), headers=headers)
@@ -39,7 +38,7 @@ def get_healthcheck():
     global last_healthcheck_ts
     log_str = f"aip-client: GET {healthcheck_url}"
     last_healthcheck_ts = time.time()
-    headers = { "aip-uuid": uuid }
+    headers = { "aip-uuid": the_uuid }
     response = requests.get(healthcheck_url, headers=headers, timeout=120)
     logging.info(f"{log_str} -> {response.status_code}")
 
@@ -58,7 +57,7 @@ def post_transcribe(fname):
     with open(fname, 'rb') as f:
         files = {'audio': f}
         headers = {
-            "aip-uuid": uuid,
+            "aip-uuid": the_uuid,
         }
         response = requests.post(transcribe_url, files=files, headers=headers)
         try:

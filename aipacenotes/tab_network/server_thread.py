@@ -13,9 +13,10 @@ class ServerThread(QThread):
     on_recording_stop = pyqtSignal(dict)
     on_recording_cut = pyqtSignal(dict)
 
-    def __init__(self):
+    def __init__(self, proxy_request_manager):
         super().__init__()
 
+        self.proxy_request_manager = proxy_request_manager
         self.latest_transcript_text = ""
 
     def run(self):
