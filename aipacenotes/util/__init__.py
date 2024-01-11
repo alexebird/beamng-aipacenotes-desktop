@@ -4,6 +4,7 @@ import uuid
 import zipfile
 import logging
 
+AUTOFILL_BLOCKER = '#'
 UNKNOWN_PLACEHOLDER = '[unknown]'
 APP_NAME = 'AiPacenotesDesktop'
 

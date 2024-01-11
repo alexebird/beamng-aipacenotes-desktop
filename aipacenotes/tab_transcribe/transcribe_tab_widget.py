@@ -246,7 +246,8 @@ class TranscribeTabWidget(QWidget):
         self.recording_thread.start()
 
     def kill_recording_thread(self):
-        self.recording_thread.stop()
+        if self.recording_thread:
+            self.recording_thread.stop()
 
     def async_refresh_device(self):
         logging.info('refreshing audio devices')
