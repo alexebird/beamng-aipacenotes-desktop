@@ -6,14 +6,14 @@ from urllib.parse import urljoin
 import aipacenotes.util
 
 # TODO should be in settings.json
-# base_url = "https://pacenotes-concurrent-mo5q6vt2ea-uw.a.run.app"
-# base_url = "http://localhost:8080"
-base_url = "https://aipacenotes.alxb.us"
-prefix = 'f'
+# BASE_URL = "http://localhost:8080"
 
-create_pacenotes_audio_url = urljoin(base_url, 'f/pacenotes/audio/create')
-healthcheck_url = urljoin(base_url, 'f/health')
-transcribe_url = urljoin(base_url, 'f/transcribe')
+# the flask app is mapped to the prefix `/f` by nginx.
+BASE_URL = "https://aipacenotes.alxb.us/f"
+
+create_pacenotes_audio_url = urljoin(BASE_URL, 'pacenotes/audio/create')
+healthcheck_url = urljoin(BASE_URL, 'health')
+transcribe_url = urljoin(BASE_URL, 'transcribe')
 
 last_healthcheck_ts = 0.0
 

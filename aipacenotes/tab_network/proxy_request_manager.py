@@ -1,7 +1,5 @@
 import queue
 
-# import aipacenotes.util
-
 from .proxy_request import ProxyRequest
 
 class ProxyRequestManager:
