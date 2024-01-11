@@ -1,5 +1,3 @@
-import aipacenotes.util
-
 from PyQt6.QtCore import (
     Qt,
     QEvent,
@@ -11,6 +9,7 @@ from PyQt6.QtWidgets import (
     QToolTip,
 )
 
+import aipacenotes.util
 from .proxy_request import headers
 
 class RequestsTable(QTableView):
@@ -20,17 +19,17 @@ class RequestsTable(QTableView):
         self.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        # header = self.horizontalHeader()
-        # stylesheet = """
-        # QHeaderView::section::horizontal{
-        #     Background-color:rgb(240,240,240);
-        #     border-radius:14px;
-        #     border-right: 1px solid rgb(130, 136, 144);
-        #     border-bottom: 1px solid rgb(130, 136, 144);
-        # }
-        # """
-        # header.setStyleSheet(stylesheet)
-
+        if aipacenotes.util.is_windows():
+            header = self.horizontalHeader()
+            stylesheet = """
+            QHeaderView::section::horizontal{
+                Background-color:rgb(240,240,240);
+                border-radius:14px;
+                border-right: 1px solid rgb(130, 136, 144);
+                border-bottom: 1px solid rgb(130, 136, 144);
+            }
+            """
+            header.setStyleSheet(stylesheet)
 
     def setColumnWidths(self):
         for i,hdr in enumerate(headers):

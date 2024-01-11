@@ -18,6 +18,7 @@ from aipacenotes.tab_transcribe import TranscribeTabWidget
 
 from aipacenotes.settings import SettingsManager
 from aipacenotes.status_bar import StatusBarWidget
+import aipacenotes.util
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -41,18 +42,21 @@ class MainWindow(QMainWindow):
 
         # Managers live for the lifetime of the program so they can detect changes across pacenote file scans.
         self.settings_manager = SettingsManager(self.status_bar)
-        # self.settings_manager.load()
+        if aipacenotes.util.is_windows():
+            self.settings_manager.load()
+            logging.info(f"BeamNG user dir: {self.settings_manager.get_beam_user_home()}")
 
-        # logging.info(f"BeamNG user dir: {self.settings_manager.get_beam_user_home()}")
-
-        # self.pacenotes_tab = PacenotesTabWidget(self.settings_manager)
+        if aipacenotes.util.is_windows():
+            self.pacenotes_tab = PacenotesTabWidget(self.settings_manager)
+            self.transcribe_tab = TranscribeTabWidget(self.settings_manager, self.network_tab)
         self.network_tab = NetworkTabWidget(self.settings_manager)
-        # self.transcribe_tab = TranscribeTabWidget(self.settings_manager, self.network_tab)
 
         self.tab_widget = QTabWidget()
-        # self.tab_widget.addTab(self.pacenotes_tab, "Pacenotes")
+        if aipacenotes.util.is_windows():
+            self.tab_widget.addTab(self.pacenotes_tab, "Pacenotes")
         self.tab_widget.addTab(self.network_tab, "Network")
-        # self.tab_widget.addTab(self.transcribe_tab, "Voice")
+        if aipacenotes.util.is_windows():
+            self.tab_widget.addTab(self.transcribe_tab, "Voice")
 
         self.top_lvl_widget = QWidget()
         self.top_lvl_layout = QVBoxLayout()
@@ -64,8 +68,11 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.top_lvl_widget)
 
     def things_to_stop(self):
-        return [
-            # self.pacenotes_tab.timer_thread.stop,
-            # self.pacenotes_tab.task_manager.shutdown,
-            # self.transcribe_tab.stop_recording_thread,
-        ]
+        if aipacenotes.util.is_windows():
+            return [
+                # self.pacenotes_tab.timer_thread.stop,
+                # self.pacenotes_tab.task_manager.shutdown,
+                self.transcribe_tab.stop_recording_thread,
+            ]
+        else:
+            return []
