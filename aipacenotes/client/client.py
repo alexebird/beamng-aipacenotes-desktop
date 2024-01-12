@@ -2,7 +2,6 @@ import json
 import logging
 import time
 import requests
-from urllib.parse import urljoin
 import aipacenotes.settings
 
 # TODO should be in settings.json
@@ -11,9 +10,9 @@ import aipacenotes.settings
 # the flask app is mapped to the prefix `/f` by nginx.
 BASE_URL = "https://aipacenotes.alxb.us/f"
 
-create_pacenotes_audio_url = urljoin(BASE_URL, 'pacenotes/audio/create')
-healthcheck_url = urljoin(BASE_URL, 'health')
-transcribe_url = urljoin(BASE_URL, 'transcribe')
+create_pacenotes_audio_url = BASE_URL + '/pacenotes/audio/create'
+healthcheck_url = BASE_URL + '/health'
+transcribe_url = BASE_URL + '/transcribe'
 
 last_healthcheck_ts = 0.0
 
@@ -28,17 +27,19 @@ def post_create_pacenotes_audio(pacenote_note, voice_config):
         "aip-uuid": aipacenotes.settings.user_settings.get_uuid(),
     }
 
+    # log_str = f"aip-client: POST {create_pacenotes_audio_url}"
     response = requests.post(create_pacenotes_audio_url, data=json.dumps(data), headers=headers)
+    # logging.info(f"{log_str} -> {response.status_code}")
 
     return response
 
 def get_healthcheck():
     global last_healthcheck_ts
-    log_str = f"aip-client: GET {healthcheck_url}"
+    # log_str = f"aip-client: GET {healthcheck_url}"
     last_healthcheck_ts = time.time()
     headers = { "aip-uuid": aipacenotes.settings.user_settings.get_uuid() }
     response = requests.get(healthcheck_url, headers=headers, timeout=120)
-    logging.info(f"{log_str} -> {response.status_code}")
+    # logging.info(f"{log_str} -> {response.status_code}")
 
     if response.status_code == 200:
         return True
@@ -57,7 +58,9 @@ def post_transcribe(fname):
         headers = {
             "aip-uuid": aipacenotes.settings.user_settings.get_uuid(),
         }
+        # log_str = f"aip-client: POST {transcribe_url}"
         response = requests.post(transcribe_url, files=files, headers=headers)
+        # logging.info(f"{log_str} -> {response.status_code}")
         try:
             return response.json()
         except requests.exceptions.JSONDecodeError:

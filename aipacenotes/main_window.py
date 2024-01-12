@@ -31,7 +31,7 @@ import aipacenotes.util
 
 APP_NAME = "AI Pacenotes"
 
-QCoreApplication.setApplicationName(APP_NAME)
+# QCoreApplication.setApplicationName(APP_NAME)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -46,8 +46,7 @@ class MainWindow(QMainWindow):
         self.edit_menu = self.menu_bar.addMenu("&Edit")
 
         settings_action = QAction("Settings", self)
-        # settings_action.setShortcut(QKeySequence("Ctrl+q"))
-        settings_action.triggered.connect(self.close)
+        settings_action.triggered.connect(self.open_settings_dialog)
         self.edit_menu.addAction(settings_action)
 
         # Add action to the file menu
@@ -64,11 +63,10 @@ class MainWindow(QMainWindow):
             self.settings_manager.load()
             logging.info(f"BeamNG user dir: {self.settings_manager.get_beam_user_home()}")
 
+        self.network_tab = NetworkTabWidget(self.settings_manager)
         if aipacenotes.util.is_windows():
             self.pacenotes_tab = PacenotesTabWidget(self.settings_manager)
             self.transcribe_tab = TranscribeTabWidget(self.settings_manager, self.network_tab)
-        self.network_tab = NetworkTabWidget(self.settings_manager)
-
 
         self.tab_widget = QTabWidget()
         if aipacenotes.util.is_windows():

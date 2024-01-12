@@ -1,28 +1,18 @@
 import os
 import platform
 import re
-# import uuid
 import zipfile
 import logging
 
-# import aipacenotes
-# import aipacenotes.settings
-
 AUTOFILL_BLOCKER = '#'
 UNKNOWN_PLACEHOLDER = '[unknown]'
+EMPTY_PLACEHOLDER = '[empty]'
 
 def is_windows():
     return platform.system() == 'Windows'
 
 def is_mac():
-    return not is_windows()
-
-# def create_uuid_file():
-#     if is_windows():
-#         write_uuid_to_appdata()
-#         return read_uuid_from_appdata() or "heh"
-#     else:
-#         return uuid.uuid4()
+    return platform.system() == 'Darwin'
 
 def is_dev():
     return os.environ.get('AIP_DEV', 'f') == 't'

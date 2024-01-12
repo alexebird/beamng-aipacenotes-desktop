@@ -7,7 +7,7 @@ import uuid
 import aipacenotes.util
 import aipacenotes.settings
 
-if aipacenotes.util.is_dev():
+if aipacenotes.util.is_dev() and aipacenotes.util.is_mac():
     BASE_URL = 'http://localhost:3000'
 else:
     BASE_URL = 'https://aipacenotes.alxb.us'

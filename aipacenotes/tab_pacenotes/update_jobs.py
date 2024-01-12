@@ -61,7 +61,7 @@ class UpdateJob:
                 self.pacenote.write_file(response.content)
                 self._status = UPDATE_JOB_STATUS_SUCCESS
             else:
-                logging.error(f"network error")
+                logging.error(f"network error: {response.status_code} {response.text}")
                 self._status = UPDATE_JOB_STATUS_ERROR
                 self.store.set_error(self)
         else:
@@ -159,27 +159,21 @@ class UpdateJobsStore:
     def has_job_for_pacenote(self, pacenote):
         id = pacenote_job_id(pacenote)
 
-        rv = False
+        lock_rv = False
+        err_rv = False
 
         if id in self.pacenote_ids_lock:
             job = self.pacenote_ids_lock[id]
             if job is not None:
-                # return True
-                rv = True
-            # else:
-                # return False
-
-        logging.debug(f"UpdateJobsStore.has_job_for_pacenote {pacenote.short_name()} | lock rv={rv}")
+                lock_rv = True
 
         if id in self.pacenote_ids_error:
             job = self.pacenote_ids_error[id]
             if job is not None:
-                # return True
-                rv = True
-            # else:
-                # return False
+                err_rv = True
 
-        logging.debug(f"UpdateJobsStore.has_job_for_pacenote {pacenote.short_name()} | error rv={rv}")
+        rv = lock_rv or err_rv
+        logging.debug(f"UpdateJobsStore.has_job_for_pacenote {pacenote.short_name()} | lock_rv={lock_rv} err_rv={err_rv} rv={rv}")
 
         return rv
 

@@ -74,7 +74,8 @@ class Pacenote:
     def needs_update(self):
         file_doesnt_exist = not self.note_file_exists()
         unknown = self.note() == aipacenotes.util.UNKNOWN_PLACEHOLDER
-        empty = self.note().strip() == ""
+        empty = self.note() == aipacenotes.util.EMPTY_PLACEHOLDER
+        # empty = self.note().strip() == ""
         rv = file_doesnt_exist and not unknown and not empty
         if rv:
             logging.info(f"Pacenote.needs_update() {self.short_name()} | file_doesnt_exist={file_doesnt_exist} unknown={unknown} empty={empty} rv={rv}")
@@ -139,7 +140,7 @@ class Notebook:
 
             rv = ' '.join([before, note, after]).strip()
             if rv == '':
-                return aipacenotes.util.UNKNOWN_PLACEHOLDER
+                return aipacenotes.util.EMPTY_PLACEHOLDER
 
             return rv
 

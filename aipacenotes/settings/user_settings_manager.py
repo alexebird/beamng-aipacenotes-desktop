@@ -8,15 +8,14 @@ import aipacenotes.util
 APP_NAME = 'AiPacenotesDesktop'
 
 class UserSettingsManager:
-    def __init__(self, app_name):
-        self.app_name = app_name
+    def __init__(self):
         self.settings_file = self._get_settings_file_path()
         self.settings_data = self._load_settings()
         self.get_uuid() # generate the uuid
 
     def _get_settings_file_path(self):
         appdata_dir = os.getenv('APPDATA') if aipacenotes.util.is_windows() else os.path.expanduser("~/.config/")
-        app_dir = os.path.join(appdata_dir, self.app_name)
+        app_dir = os.path.join(appdata_dir, APP_NAME)
         os.makedirs(app_dir, exist_ok=True)
         settings_path = os.path.join(app_dir, 'settings.json')
         logging.debug(f"user_settings path: {settings_path}")
@@ -50,4 +49,6 @@ class UserSettingsManager:
 
 
 # create the singleton.
-user_settings = UserSettingsManager(APP_NAME)
+user_settings = None
+def setup():
+    aipacenotes.settings.user_settings = UserSettingsManager()

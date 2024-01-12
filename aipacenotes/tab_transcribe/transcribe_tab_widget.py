@@ -114,6 +114,7 @@ class TranscribeTabWidget(QWidget):
 
         self.settings_manager = settings_manager
         self.network_tab = network_tab
+        self.recording_thread = None
 
         self.network_tab.on_endpoint_recording_start.connect(self.on_endpoint_recording_start)
         self.network_tab.on_endpoint_recording_stop.connect(self.on_endpoint_recording_stop)

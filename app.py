@@ -1,9 +1,6 @@
-# This file was originally made following: https://www.pythonguis.com/tutorials/packaging-pyqt6-applications-windows-pyinstaller/
-
 import sys
 import os
 import logging
-import datetime
 import pathlib
 
 from PyQt6 import QtGui
@@ -11,6 +8,7 @@ from PyQt6.QtWidgets import QApplication
 
 from aipacenotes.main_window import MainWindow
 import aipacenotes.settings.settings_manager
+import aipacenotes.settings.user_settings_manager
 import aipacenotes.util
 
 # set the windows process' id in order to get the desired task bar icon.
@@ -28,7 +26,6 @@ def exception_hook(exc_type, exc_value, exc_traceback):
        exc_info=(exc_type, exc_value, exc_traceback)
    )
    sys.exit()
-
 
 def rotate_file(file_path, max_rotation):
     if os.path.isfile(file_path):
@@ -49,12 +46,13 @@ def rotate_file(file_path, max_rotation):
         os.rename(file_path, f"{base}.1{ext}")
 
 def set_up_logger():
-    numba_logger = logging.getLogger('numba')
-    numba_logger.setLevel(logging.WARNING)
+    # numba_logger = logging.getLogger('numba')
+    # numba_logger.setLevel(logging.WARNING)
 
     if aipacenotes.util.is_dev() or aipacenotes.util.is_mac():
         print(f"AIP_DEV is {aipacenotes.util.is_dev()}")
         print(f"is_mac is {aipacenotes.util.is_mac()}")
+        print(f"is_windows is {aipacenotes.util.is_windows()}")
         logging.basicConfig(
             stream=sys.stdout,
             level=logging.DEBUG,
@@ -105,6 +103,7 @@ def set_up_logger():
 
 def start_app():
     set_up_logger()
+    aipacenotes.settings.user_settings_manager.setup()
     app = QApplication(sys.argv)
     basedir = os.path.dirname(__file__)
     app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'icons', 'aipacenotes.ico')))
