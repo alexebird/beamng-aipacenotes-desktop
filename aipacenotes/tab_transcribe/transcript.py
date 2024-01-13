@@ -31,6 +31,12 @@ class Transcript:
             'vehicle_pos': self.vehicle_pos,
         }
 
+    def as_json_for_recce_app(self):
+        return  {
+            'transcript': self.txt,
+            'success': self.success,
+        }
+
     def set_beam_fname(self, beam_user_home):
         self.beam_fname = self.fname.replace(beam_user_home, '')
 
@@ -125,3 +131,9 @@ class TranscriptStore:
 
     def sort(self):
         self.transcripts.sort(key=lambda x: x.ts, reverse=False)
+
+    def get_latest(self, count):
+        transcripts = [t for t in self.transcripts if t.txt is not None]
+        rv = transcripts[-count:]
+        rv.reverse()
+        return rv

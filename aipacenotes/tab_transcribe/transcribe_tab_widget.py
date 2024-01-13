@@ -114,6 +114,7 @@ class TranscribeTabWidget(QWidget):
 
         self.settings_manager = settings_manager
         self.network_tab = network_tab
+        self.server_thread = network_tab.server_thread
         self.recording_thread = None
 
         self.network_tab.on_endpoint_recording_start.connect(self.on_endpoint_recording_start)
@@ -121,6 +122,8 @@ class TranscribeTabWidget(QWidget):
         self.network_tab.on_endpoint_recording_cut.connect(self.on_endpoint_recording_cut)
 
         self.fname_transcript = self.settings_manager.get_transcript_fname()
+        self.transcript_store = TranscriptStore(self.fname_transcript)
+        self.server_thread.set_transcript_store(self.transcript_store)
 
         self.transcribe_done.connect(self.on_transcribe_done)
         self.device_refreshed.connect(self.on_device_refreshed)
@@ -221,7 +224,6 @@ class TranscribeTabWidget(QWidget):
         """
         header.setStyleSheet(stylesheet)
 
-        self.transcript_store = TranscriptStore(self.fname_transcript)
         self.table_model = TranscriptionStoreTableModel(self.transcript_store)
         self.table.setModel(self.table_model)
         self.table.setColumnWidth(0, 400)
@@ -375,6 +377,7 @@ class TranscribeTabWidget(QWidget):
             self.async_refresh_device()
         else:
             self.set_enable_voice_button_state(False)
+            self.recording_widget.setState(False)
             self.recording_group_box.setEnabled(False)
             self.device_group_box.setEnabled(False)
             self.device_label.setText("Device: <none>")

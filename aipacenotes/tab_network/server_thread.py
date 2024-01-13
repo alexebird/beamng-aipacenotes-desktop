@@ -17,7 +17,10 @@ class ServerThread(QThread):
         super().__init__()
 
         self.proxy_request_manager = proxy_request_manager
-        self.latest_transcript_text = ""
+        self.transcript_store = None
+
+    def set_transcript_store(self, transcript_store):
+        self.transcript_store = transcript_store
 
     def run(self):
         server = Server(self)
@@ -35,9 +38,18 @@ class ServerThread(QThread):
         logging.debug("SeverThread._on_recording_cut")
         self.on_recording_cut.emit(vehicle_pos)
 
-    def _on_get_transcript(self, id):
-        logging.debug("SeverThread._on_get_transcript")
-        return self.latest_transcript_text
+    def get_transcripts(self, count):
+        logging.debug("SeverThread.get_transcripts")
+        if not self.transcript_store:
+            logging.warn("SeverThread.get_transcripts: transcript_store is None")
+            return []
 
-    def set_latest_transcript(self, txt):
-        self.latest_transcript_text = txt
+        count = int(count)
+        return [t.as_json_for_recce_app() for t in self.transcript_store.get_latest(count)]
+
+    # def _on_get_transcript(self, id):
+    #     logging.debug("SeverThread._on_get_transcript")
+    #     return self.latest_transcript_text
+
+    # def set_latest_transcript(self, txt):
+    #     self.latest_transcript_text = txt

@@ -41,10 +41,15 @@ class Server:
             self.server_thread._on_recording_cut(vehicle_pos)
             return jsonify({"msg": "recording was cut"})
 
-        @self.app.route('/transcript/<id>')
-        def get_transcript(id):
-            transcript_text = self.server_thread._on_get_transcript(id)
-            return jsonify({"msg": f"got transcript with id={id}", "transcript": transcript_text})
+        # @self.app.route('/transcript/<id>')
+        # def get_transcript(id):
+        #     transcript_text = self.server_thread._on_get_transcript(id)
+        #     return jsonify({"msg": f"got transcript with id={id}", "transcript": transcript_text})
+
+        @self.app.route('/transcripts/<count>')
+        def get_transcripts_latest(count):
+            transcripts = self.server_thread.get_transcripts(count)
+            return jsonify({'ok': True, 'transcripts': transcripts})
 
     def run(self, debug=False):
         self.app.run(port=self.port, debug=debug, use_reloader=False)
