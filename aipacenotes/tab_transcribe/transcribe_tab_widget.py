@@ -115,6 +115,7 @@ class TranscribeTabWidget(QWidget):
         self.settings_manager = settings_manager
         self.network_tab = network_tab
         self.server_thread = network_tab.server_thread
+        self.server_thread.set_transcribe_tab(self)
         self.recording_thread = None
 
         self.network_tab.on_endpoint_recording_start.connect(self.on_endpoint_recording_start)
@@ -124,6 +125,7 @@ class TranscribeTabWidget(QWidget):
         self.fname_transcript = self.settings_manager.get_transcript_fname()
         self.transcript_store = TranscriptStore(self.fname_transcript)
         self.server_thread.set_transcript_store(self.transcript_store)
+
 
         self.transcribe_done.connect(self.on_transcribe_done)
         self.device_refreshed.connect(self.on_device_refreshed)
@@ -178,7 +180,7 @@ class TranscribeTabWidget(QWidget):
         self.stop_button = QPushButton('Stop')
         self.stop_button.setFixedWidth(100)
         self.stop_button.setEnabled(False)
-        self.stop_button.clicked.connect(self.stop_recording)
+        self.stop_button.clicked.connect(self.on_stop_recording_button)
         recording_btn_layout.addWidget(self.stop_button)
 
         self.cut_button = QPushButton('Cut')
@@ -308,16 +310,22 @@ class TranscribeTabWidget(QWidget):
         self.stop_button.setEnabled(is_recording)
 
     def start_recording(self):
-        self.set_recording_ui_state(True)
-        self.recording_thread.start_recording()
+        if self.recording_thread:
+            self.set_recording_ui_state(True)
+            self.recording_thread.start_recording()
 
-    def stop_recording(self, vehicle_pos=None):
-        self.set_recording_ui_state(False)
-        self.recording_thread.stop_recording(vehicle_pos)
+    def stop_recording(self, create_entry=True, vehicle_pos=None):
+        if self.recording_thread:
+            self.set_recording_ui_state(False)
+            self.recording_thread.stop_recording(create_entry, vehicle_pos)
+
+    def on_stop_recording_button(self):
+        self.stop_recording(True)
 
     def cut_recording(self, vehicle_pos=None):
-        self.set_recording_ui_state(True)
-        self.recording_thread.cut_recording(vehicle_pos)
+        if self.recording_thread:
+            self.set_recording_ui_state(True)
+            self.recording_thread.cut_recording(vehicle_pos)
 
     def on_transcript_created(self, transcript):
         transcript.set_beam_fname(self.settings_manager.get_beam_user_home())
@@ -333,13 +341,16 @@ class TranscribeTabWidget(QWidget):
     def update_recording_status(self, is_recording):
         self.recording_widget.setState(is_recording)
 
+    def is_recording(self):
+        return self.recording_widget.getState()
+
     def on_endpoint_recording_start(self, vehicle_pos):
         logging.debug("TranscribeTab recording start")
         self.start_recording()
 
-    def on_endpoint_recording_stop(self, vehicle_pos):
+    def on_endpoint_recording_stop(self, create_entry, vehicle_pos):
         logging.debug("TranscribeTab recording stop")
-        self.stop_recording(vehicle_pos)
+        self.stop_recording(create_entry, vehicle_pos)
 
     def on_endpoint_recording_cut(self, vehicle_pos):
         logging.debug("TranscribeTab recording cut")
@@ -386,3 +397,6 @@ class TranscribeTabWidget(QWidget):
 
     def stop_recording_thread(self):
         self.kill_recording_thread()
+
+    def recording_enabled(self):
+        return self.recording_thread and self.recording_thread.recording_enabled

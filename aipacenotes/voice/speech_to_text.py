@@ -12,6 +12,6 @@ class SpeechToText:
             if response['error'] == True:
                 return None
             else:
-                return response['transcript']
+                return response['text']
         else:
             return None

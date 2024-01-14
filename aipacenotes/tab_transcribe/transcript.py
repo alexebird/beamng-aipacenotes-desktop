@@ -9,20 +9,21 @@ import aipacenotes.util
 
 class Transcript:
     col_count = 5
-    table_headers = ["Transcript", "File", "Timestamp", "Source", "Vehicle Position"]
+    table_headers = ["Text", "File", "Timestamp", "Source", "Vehicle Position"]
 
-    def __init__(self, src, fname, vehicle_pos, ts=time.time(), txt=None, success=False):
+    def __init__(self, src, fname, vehicle_pos, ts=time.time(), text=None, success=False):
+        self.oldId = 0 # needed for loading into beamng
         self.src = src
         self.fname = fname
         self.beam_fname = None
         self.vehicle_pos = vehicle_pos
         self.ts = ts
-        self.txt = txt
+        self.text = text
         self.success = success
 
     def as_json(self):
         return  {
-            'transcript': self.txt,
+            'text': self.text,
             'success': self.success,
             'src': self.src,
             'file': self.fname,
@@ -33,20 +34,23 @@ class Transcript:
 
     def as_json_for_recce_app(self):
         return  {
-            'transcript': self.txt,
+            'text': self.text,
             'success': self.success,
         }
+
+    def set_oldId(self, oldId):
+        self.oldId = oldId
 
     def set_beam_fname(self, beam_user_home):
         self.beam_fname = self.fname.replace(beam_user_home, '')
 
     def __str__(self):
-        return f"{self.txt}, {self.ts}, {self.fname}"
+        return f"{self.text}, {self.ts}, {self.fname}"
 
     def fieldAt(self, col):
         if col == 0:
-            if self.txt:
-                return self.txt
+            if self.text:
+                return self.text
             else:
                 return '[processing...]'
         elif col == 1:
@@ -66,17 +70,17 @@ class Transcript:
 
     def transcribe(self):
         speech = SpeechToText(self.fname)
-        txt = speech.transcribe()
-        if txt is None:
-            txt = aipacenotes.util.UNKNOWN_PLACEHOLDER
+        text = speech.transcribe()
+        if text is None:
+            text = aipacenotes.util.UNKNOWN_PLACEHOLDER
             self.success = False
         else:
-            txt = txt.lower()
+            text = text.lower()
             self.success = True
-        self.txt = txt
+        self.text = text
 
 class TranscriptStore:
-    transcripts_key = 'transcript'
+    transcripts_key = 'transcripts'
 
     def __init__(self, fname):
         self.fname = fname
@@ -97,7 +101,7 @@ class TranscriptStore:
                 fname=item.get("file"),
                 vehicle_pos=item.get("vehicle_pos"),
                 ts=item.get("timestamp"),
-                txt=item.get("transcript"),
+                text=item.get("text"),
                 success=item.get("success")
             )
             self.transcripts.append(transcript)
@@ -126,6 +130,7 @@ class TranscriptStore:
             logging.debug(f"  - {t}")
 
     def add(self, transcript):
+        transcript.set_oldId(len(self.transcripts))
         self.transcripts.append(transcript)
         self.sort()
 
@@ -133,7 +138,7 @@ class TranscriptStore:
         self.transcripts.sort(key=lambda x: x.ts, reverse=False)
 
     def get_latest(self, count):
-        transcripts = [t for t in self.transcripts if t.txt is not None]
+        transcripts = [t for t in self.transcripts if t.text is not None]
         rv = transcripts[-count:]
         rv.reverse()
         return rv

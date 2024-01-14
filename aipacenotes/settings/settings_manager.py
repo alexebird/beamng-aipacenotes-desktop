@@ -94,7 +94,7 @@ class SettingsManager():
         return self.settings['pacenotes_search_paths']
 
     def get_transcript_fname(self):
-        return os.path.join(self.get_settings_dir(), self.settings['transcript_fname'])
+        return os.path.join(self.get_settings_dir(), self.settings['transcripts_fname'])
 
     def get_settings_dir(self):
         val = self.settings['settings_dir']

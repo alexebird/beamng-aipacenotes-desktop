@@ -26,20 +26,30 @@ class Server:
         @self.app.route('/recordings/actions/start', methods=['POST'])
         def recording_actions_start():
             vehicle_pos = request.json
-            self.server_thread._on_recording_start(vehicle_pos)
-            return jsonify({"msg": "recording was started"})
+            if self.server_thread.transcribe_tab.recording_enabled():
+                self.server_thread._on_recording_start(vehicle_pos)
+                return jsonify({"ok": True})
+            else:
+                return jsonify({"ok": False, "error": "recording is not enabled"})
 
         @self.app.route('/recordings/actions/stop', methods=['POST'])
         def recording_actions_stop():
             vehicle_pos = request.json
-            self.server_thread._on_recording_stop(vehicle_pos)
-            return jsonify({"msg": "recording was stopped"})
+            if self.server_thread.transcribe_tab.recording_enabled():
+                create_transcript = False
+                self.server_thread._on_recording_stop(create_transcript, vehicle_pos)
+                return jsonify({"ok": True})
+            else:
+                return jsonify({"ok": False, "error": "recording is not enabled"})
 
         @self.app.route('/recordings/actions/cut', methods=['POST'])
         def recording_actions_cut():
             vehicle_pos = request.json
-            self.server_thread._on_recording_cut(vehicle_pos)
-            return jsonify({"msg": "recording was cut"})
+            if self.server_thread.transcribe_tab.recording_enabled():
+                self.server_thread._on_recording_cut(vehicle_pos)
+                return jsonify({"ok": True})
+            else:
+                return jsonify({"ok": False, "error": "recording is not enabled"})
 
         # @self.app.route('/transcript/<id>')
         # def get_transcript(id):
@@ -49,7 +59,11 @@ class Server:
         @self.app.route('/transcripts/<count>')
         def get_transcripts_latest(count):
             transcripts = self.server_thread.get_transcripts(count)
-            return jsonify({'ok': True, 'transcripts': transcripts})
+            return jsonify({
+                'ok': True,
+                'is_recording': self.server_thread.transcribe_tab.is_recording(),
+                'transcripts': transcripts,
+            })
 
     def run(self, debug=False):
         self.app.run(port=self.port, debug=debug, use_reloader=False)

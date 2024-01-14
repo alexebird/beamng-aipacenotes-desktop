@@ -32,6 +32,7 @@ class RecordingThread(QThread):
         self.should_write_audio = False
         self.cut_triggered = False
         self.stop_triggered = False
+        self.stop_create_entry = True
         self.last_vehicle_pos = None
         self.q = queue.Queue()
         self.recording_enabled = True
@@ -187,9 +188,10 @@ class RecordingThread(QThread):
     def close_soundfile_and_emit_transcript(self, src):
         if self.f_out:
             self.f_out.close()
-            transcript = Transcript(src, self.fname_out, self.last_vehicle_pos)
+            if self.stop_create_entry:
+                transcript = Transcript(src, self.fname_out, self.last_vehicle_pos)
+                self.transcript_created.emit(transcript)
             self.last_vehicle_pos = None
-            self.transcript_created.emit(transcript)
         else:
             logging.warn("close_soundfile_and_emit_transcript: f_out was unexpectedly None")
 
@@ -200,19 +202,26 @@ class RecordingThread(QThread):
 
     def start_recording(self):
         logging.debug("start_recording")
+        if not self.recording_enabled:
+            return
 
         self.update_recording_status.emit(True)
 
         self.fname_out, self.f_out = self.open_new_soundfile()
         self.should_write_audio = True
 
-    def stop_recording(self, vehicle_pos=None):
+    def stop_recording(self, create_entry=True, vehicle_pos=None):
         logging.debug("stop_recording")
+        if not self.recording_enabled:
+            return
         self.set_vehicle_pos(vehicle_pos)
+        self.stop_create_entry = create_entry
         self.stop_triggered = True
 
     def cut_recording(self, vehicle_pos=None):
         logging.debug("cut_recording")
+        if not self.recording_enabled:
+            return
 
         self.set_vehicle_pos(vehicle_pos)
 

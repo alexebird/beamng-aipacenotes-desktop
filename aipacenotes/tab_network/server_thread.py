@@ -10,7 +10,7 @@ import aipacenotes.util
 class ServerThread(QThread):
 
     on_recording_start = pyqtSignal(dict)
-    on_recording_stop = pyqtSignal(dict)
+    on_recording_stop = pyqtSignal(bool, dict)
     on_recording_cut = pyqtSignal(dict)
 
     def __init__(self, proxy_request_manager):
@@ -18,9 +18,13 @@ class ServerThread(QThread):
 
         self.proxy_request_manager = proxy_request_manager
         self.transcript_store = None
+        self.transcribe_tab = None
 
     def set_transcript_store(self, transcript_store):
         self.transcript_store = transcript_store
+
+    def set_transcribe_tab(self, transcribe_tab):
+        self.transcribe_tab = transcribe_tab
 
     def run(self):
         server = Server(self)
@@ -30,9 +34,9 @@ class ServerThread(QThread):
         logging.debug("SeverThread._on_recording_start")
         self.on_recording_start.emit(vehicle_pos)
 
-    def _on_recording_stop(self, vehicle_pos):
+    def _on_recording_stop(self, create_entry, vehicle_pos):
         logging.debug("SeverThread._on_recording_stop")
-        self.on_recording_stop.emit(vehicle_pos)
+        self.on_recording_stop.emit(create_entry, vehicle_pos)
 
     def _on_recording_cut(self, vehicle_pos):
         logging.debug("SeverThread._on_recording_cut")

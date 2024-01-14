@@ -18,6 +18,8 @@ class DotWidget(QWidget):
     def __init__(self, on_color, on_text, off_text):
         super(DotWidget, self).__init__()
 
+        self.on = False
+
         self.on_color = on_color
         self.off_color = Qt.GlobalColor.gray
         self.on_text = on_text
@@ -41,7 +43,9 @@ class DotWidget(QWidget):
         self.graphics_view.setStyleSheet("border: none;")
         self.scene = QGraphicsScene()
         self.scene.setSceneRect(0, 0, 15, 15)
-        self.dot_item = self.scene.addEllipse(0, 0, 15, 15, QPen(Qt.GlobalColor.transparent), QBrush(QColor(self.off_color)))
+        self.dot_item = self.scene.addEllipse(0, 0, 15, 15,
+                                              QPen(Qt.GlobalColor.transparent),
+                                              QBrush(QColor(self.off_color)))
         self.graphics_view.setScene(self.scene)
         layout.addWidget(self.graphics_view)
 
@@ -54,9 +58,13 @@ class DotWidget(QWidget):
         self.setLayout(layout)
 
     def setState(self, on):
-        if on:
+        self.on = on
+        if self.on:
             self.dot_item.setBrush(QBrush(QColor(self.on_color)))
             self.label_monitor.setText(self.on_text)
         else:
             self.dot_item.setBrush(QBrush(QColor(self.off_color)))
             self.label_monitor.setText(self.off_text)
+
+    def getState(self):
+        return self.on
