@@ -30,6 +30,7 @@ class Transcript:
             'beamng_file': self.beam_fname,
             'timestamp': self.ts,
             'vehicle_pos': self.vehicle_pos,
+            'oldId': self.oldId,
         }
 
     def as_json_for_recce_app(self):
