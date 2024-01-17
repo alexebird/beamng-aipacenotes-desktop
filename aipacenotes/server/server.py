@@ -1,7 +1,22 @@
-from flask import Flask, jsonify, request
+import logging
+import re
+from flask import Flask, jsonify, request, has_request_context
+
+class NoLoggingFilter(logging.Filter):
+    pattern = r'^GET /transcripts/(\d+)'
+
+    def filter(self, record):
+        if record.args and len(record.args) > 0:
+            path_arg = record.args[0]
+            if re.search(self.pattern, path_arg):
+                return False
+        return True
 
 class Server:
     def __init__(self, server_thread, port=27872):
+        werkzeug_logger = logging.getLogger('werkzeug')
+        werkzeug_logger.addFilter(NoLoggingFilter())
+
         self.port = port
         self.app = Flask(__name__)
         self.server_thread = server_thread

@@ -43,7 +43,7 @@ class ServerThread(QThread):
         self.on_recording_cut.emit(vehicle_pos)
 
     def get_transcripts(self, count):
-        logging.debug("SeverThread.get_transcripts")
+        # logging.debug("SeverThread.get_transcripts")
         if not self.transcript_store:
             logging.warn("SeverThread.get_transcripts: transcript_store is None")
             return []

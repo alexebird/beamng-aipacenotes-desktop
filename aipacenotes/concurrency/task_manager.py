@@ -24,8 +24,8 @@ class TaskManager:
             # will re-raise the exception. If the job has not yet completed,
             # this will raise a concurrent.futures.TimeoutError.
             future.result(timeout=0)
-        except TimeoutError:
-            pass
+        except TimeoutError as e:
+            logging.error(f"An timeout occurred in a future: {e}")
         except Exception as e:
             import traceback
             logging.error(f"An error occurred in a future: {e}")

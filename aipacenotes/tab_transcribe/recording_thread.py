@@ -203,16 +203,19 @@ class RecordingThread(QThread):
     def start_recording(self):
         logging.debug("start_recording")
         if not self.recording_enabled:
+            logging.debug("returing due to recording_enabled=false")
             return
 
         self.update_recording_status.emit(True)
 
         self.fname_out, self.f_out = self.open_new_soundfile()
         self.should_write_audio = True
+        self.stop_create_entry = True
 
     def stop_recording(self, create_entry=True, vehicle_pos=None):
         logging.debug("stop_recording")
         if not self.recording_enabled:
+            logging.debug("returing due to recording_enabled=false")
             return
         self.set_vehicle_pos(vehicle_pos)
         self.stop_create_entry = create_entry
@@ -221,16 +224,20 @@ class RecordingThread(QThread):
     def cut_recording(self, vehicle_pos=None):
         logging.debug("cut_recording")
         if not self.recording_enabled:
+            logging.debug("returing due to recording_enabled=false")
             return
 
         self.set_vehicle_pos(vehicle_pos)
+        self.stop_create_entry = True
 
         # whenever you cut, recording starts.
         self.update_recording_status.emit(True)
 
         if self.should_write_audio: # ie, is already recording?
+            logging.debug("cutting recording from cut_recording")
             self.cut_triggered = True
         else: # the same as start_recording.
+            logging.debug("starting recording from cut_recording")
             self.fname_out, self.f_out = self.open_new_soundfile()
             self.should_write_audio = True
             self.cut_triggered = False
