@@ -9,8 +9,8 @@ import aipacenotes.util
 
 class ServerThread(QThread):
 
-    on_recording_start = pyqtSignal(dict)
-    on_recording_stop = pyqtSignal(bool, dict)
+    on_recording_start = pyqtSignal()
+    on_recording_stop = pyqtSignal(bool)
     on_recording_cut = pyqtSignal(dict)
 
     def __init__(self, proxy_request_manager):
@@ -30,17 +30,17 @@ class ServerThread(QThread):
         server = Server(self)
         server.run(debug=aipacenotes.util.is_dev())
 
-    def _on_recording_start(self, vehicle_pos):
+    def _on_recording_start(self):
         logging.debug("SeverThread._on_recording_start")
-        self.on_recording_start.emit(vehicle_pos)
+        self.on_recording_start.emit()
 
-    def _on_recording_stop(self, create_entry, vehicle_pos):
+    def _on_recording_stop(self, create_entry):
         logging.debug("SeverThread._on_recording_stop")
-        self.on_recording_stop.emit(create_entry, vehicle_pos)
+        self.on_recording_stop.emit(create_entry)
 
-    def _on_recording_cut(self, vehicle_pos):
+    def _on_recording_cut(self, vehicle_data):
         logging.debug("SeverThread._on_recording_cut")
-        self.on_recording_cut.emit(vehicle_pos)
+        self.on_recording_cut.emit(vehicle_data)
 
     def get_transcripts(self, count):
         # logging.debug("SeverThread.get_transcripts")

@@ -229,10 +229,10 @@ class TranscribeTabWidget(QWidget):
         self.table_model = TranscriptionStoreTableModel(self.transcript_store)
         self.table.setModel(self.table_model)
         self.table.setColumnWidth(0, 400)
-        self.table.setColumnWidth(1, 400)
+        self.table.setColumnWidth(1, 200)
         self.table.setColumnWidth(2, 150)
         self.table.setColumnWidth(3, 100)
-        self.table.setColumnWidth(4, 400)
+        self.table.setColumnWidth(4, 700)
         self.table.play_clicked.connect(self.play_audio)
 
         layout.addWidget(self.table)
@@ -314,18 +314,18 @@ class TranscribeTabWidget(QWidget):
             self.set_recording_ui_state(True)
             self.recording_thread.start_recording()
 
-    def stop_recording(self, create_entry=True, vehicle_pos=None):
+    def stop_recording(self, create_entry=True):
         if self.recording_thread:
             self.set_recording_ui_state(False)
-            self.recording_thread.stop_recording(create_entry, vehicle_pos)
+            self.recording_thread.stop_recording(create_entry)
 
     def on_stop_recording_button(self):
         self.stop_recording(True)
 
-    def cut_recording(self, vehicle_pos=None):
+    def cut_recording(self, vehicle_data=None):
         if self.recording_thread:
             self.set_recording_ui_state(True)
-            self.recording_thread.cut_recording(vehicle_pos)
+            self.recording_thread.cut_recording(vehicle_data)
 
     def on_transcript_created(self, transcript):
         transcript.set_beam_fname(self.settings_manager.get_beam_user_home())
@@ -344,17 +344,17 @@ class TranscribeTabWidget(QWidget):
     def is_recording(self):
         return self.recording_widget.getState()
 
-    def on_endpoint_recording_start(self, vehicle_pos):
+    def on_endpoint_recording_start(self):
         logging.debug("TranscribeTab recording start")
         self.start_recording()
 
-    def on_endpoint_recording_stop(self, create_entry, vehicle_pos):
+    def on_endpoint_recording_stop(self, create_entry):
         logging.debug("TranscribeTab recording stop")
-        self.stop_recording(create_entry, vehicle_pos)
+        self.stop_recording(create_entry)
 
-    def on_endpoint_recording_cut(self, vehicle_pos):
+    def on_endpoint_recording_cut(self, vehicle_data):
         logging.debug("TranscribeTab recording cut")
-        self.cut_recording(vehicle_pos)
+        self.cut_recording(vehicle_data)
 
     def audio_signal_detected(self, above_threshold):
         self.monitor.setState(above_threshold)

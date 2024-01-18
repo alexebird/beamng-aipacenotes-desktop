@@ -9,14 +9,14 @@ import aipacenotes.util
 
 class Transcript:
     col_count = 5
-    table_headers = ["Text", "File", "Timestamp", "Source", "Vehicle Position"]
+    table_headers = ["Text", "File", "Timestamp", "Source", "Vehicle Data"]
 
-    def __init__(self, src, fname, vehicle_pos, ts=time.time(), text=None, success=False):
+    def __init__(self, src, fname, vehicle_data, ts=time.time(), text=None, success=False):
         self.oldId = 0 # needed for loading into beamng
         self.src = src
         self.fname = fname
         self.beam_fname = None
-        self.vehicle_pos = vehicle_pos
+        self.vehicle_data = vehicle_data
         self.ts = ts
         self.text = text
         self.success = success
@@ -29,7 +29,7 @@ class Transcript:
             'file': self.fname,
             'beamng_file': self.beam_fname,
             'timestamp': self.ts,
-            'vehicle_pos': self.vehicle_pos,
+            'vehicle_data': self.vehicle_data,
             'oldId': self.oldId,
         }
 
@@ -62,8 +62,53 @@ class Transcript:
             return self.src
         elif col == 4:
             vp = ""
-            if self.vehicle_pos and "pos" in self.vehicle_pos:
-                vp = '[' + ', '.join(["{:.1f}".format(v) for v in self.vehicle_pos['pos'].values()]) + ']'
+
+            # "vehicle_data": {
+            #     "capture_data": {
+            #         "captures": {},
+            #         "cornerAnglesStyle": "1(hard) to 6(easy)"
+            #     },
+            #     "vehicle_data": {
+            #         "quat": {
+            #             "y": -0.0064838185654324,
+            #             "z": -0.26087964948587,
+            #             "x": -0.029585562473837,
+            #             "w": 0.96489608926249
+            #         },
+            #         "pos": {
+            #             "x": 491.815979,
+            #             "y": -417.3897095,
+            #             "z": 129.1630402
+            #         }
+            #     }
+            # },
+
+            if self.vehicle_data:
+                # vp = '[' + ', '.join(["{:.1f}".format(v) for v in self.vehicle_data['pos'].values()]) + ']'
+                veh_data = self.vehicle_data.get('vehicle_data', {})
+                vals = []
+
+                pos = veh_data.get('pos', None)
+                if pos:
+                    val = ','.join([f"{k}={v:.1f}" for k,v in pos.items()])
+                    vals.append(f"pos=[{val}]")
+
+                quat = veh_data.get('quat', None)
+                if quat:
+                    val = ','.join([f"{k}={v:.1f}" for k,v in quat.items()])
+                    vals.append(f"rot=[{val}]")
+
+                capture_data = self.vehicle_data.get('capture_data', {})
+
+                style = capture_data.get('cornerAnglesStyle', None)
+                if style:
+                    vals.append(f"corners='{style}'")
+
+                captures = capture_data.get('captures', None)
+                if captures is not None:
+                    vals.append(f"#captures={len(captures)}")
+
+                vp = ' | '.join(vals)
 
             return vp
         else:
@@ -100,7 +145,7 @@ class TranscriptStore:
             transcript = Transcript(
                 src=item.get("src"),
                 fname=item.get("file"),
-                vehicle_pos=item.get("vehicle_pos"),
+                vehicle_data=item.get("vehicle_data"),
                 ts=item.get("timestamp"),
                 text=item.get("text"),
                 success=item.get("success")

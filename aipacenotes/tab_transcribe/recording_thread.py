@@ -15,7 +15,7 @@ from . import Transcript
 class RecordingThread(QThread):
     update_recording_status = pyqtSignal(bool)
     # update_transcription = pyqtSignal(str)
-    # source, fname, vehicle_pos dict
+    # source, fname, vehicle_data dict
     recording_file_created = pyqtSignal(str, str, float, object)
     transcript_created = pyqtSignal(Transcript)
     audio_signal_detected = pyqtSignal(bool)
@@ -33,7 +33,7 @@ class RecordingThread(QThread):
         self.cut_triggered = False
         self.stop_triggered = False
         self.stop_create_entry = True
-        self.last_vehicle_pos = None
+        self.last_vehicle_data = None
         self.q = queue.Queue()
         self.recording_enabled = True
         self.t_monitor_update = time.time()
@@ -133,7 +133,7 @@ class RecordingThread(QThread):
                 if self.should_write_audio:
                     if audio_data is None:
                         # if there's no audio data, then we can't do anything anyway, so just continue.
-                        self.log_with_debounce("no audio data. is your mic plugged in?")
+                        self.log_with_debounce("no audio data for the last round. is your mic plugged in? if the blue monitor icon works, then ignore this message.")
                         continue
 
                     self.write_audio_data(audio_data)
@@ -189,16 +189,14 @@ class RecordingThread(QThread):
         if self.f_out:
             self.f_out.close()
             if self.stop_create_entry:
-                transcript = Transcript(src, self.fname_out, self.last_vehicle_pos)
+                transcript = Transcript(src, self.fname_out, self.last_vehicle_data)
                 self.transcript_created.emit(transcript)
-            self.last_vehicle_pos = None
+            self.last_vehicle_data = None
         else:
             logging.warn("close_soundfile_and_emit_transcript: f_out was unexpectedly None")
 
-    def set_vehicle_pos(self, vehicle_pos):
-        if vehicle_pos is False:
-            vehicle_pos = None
-        self.last_vehicle_pos = vehicle_pos
+    def set_vehicle_data(self, vehicle_data):
+        self.last_vehicle_data = vehicle_data
 
     def start_recording(self):
         logging.debug("start_recording")
@@ -212,22 +210,21 @@ class RecordingThread(QThread):
         self.should_write_audio = True
         self.stop_create_entry = True
 
-    def stop_recording(self, create_entry=True, vehicle_pos=None):
+    def stop_recording(self, create_entry=True):
         logging.debug("stop_recording")
         if not self.recording_enabled:
             logging.debug("returing due to recording_enabled=false")
             return
-        self.set_vehicle_pos(vehicle_pos)
         self.stop_create_entry = create_entry
         self.stop_triggered = True
 
-    def cut_recording(self, vehicle_pos=None):
+    def cut_recording(self, vehicle_data=None):
         logging.debug("cut_recording")
         if not self.recording_enabled:
             logging.debug("returing due to recording_enabled=false")
             return
 
-        self.set_vehicle_pos(vehicle_pos)
+        self.set_vehicle_data(vehicle_data)
         self.stop_create_entry = True
 
         # whenever you cut, recording starts.

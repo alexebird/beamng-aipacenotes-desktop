@@ -40,28 +40,26 @@ class Server:
     def setup_recording_routes(self):
         @self.app.route('/recordings/actions/start', methods=['POST'])
         def recording_actions_start():
-            vehicle_pos = request.json
             if self.server_thread.transcribe_tab.recording_enabled():
-                self.server_thread._on_recording_start(vehicle_pos)
+                self.server_thread._on_recording_start()
                 return jsonify({"ok": True})
             else:
                 return jsonify({"ok": False, "error": "recording is not enabled"})
 
         @self.app.route('/recordings/actions/stop', methods=['POST'])
         def recording_actions_stop():
-            vehicle_pos = request.json
             if self.server_thread.transcribe_tab.recording_enabled():
                 create_transcript = False
-                self.server_thread._on_recording_stop(create_transcript, vehicle_pos)
+                self.server_thread._on_recording_stop(create_transcript)
                 return jsonify({"ok": True})
             else:
                 return jsonify({"ok": False, "error": "recording is not enabled"})
 
         @self.app.route('/recordings/actions/cut', methods=['POST'])
         def recording_actions_cut():
-            vehicle_pos = request.json
             if self.server_thread.transcribe_tab.recording_enabled():
-                self.server_thread._on_recording_cut(vehicle_pos)
+                vehicle_data = request.json
+                self.server_thread._on_recording_cut(vehicle_data)
                 return jsonify({"ok": True})
             else:
                 return jsonify({"ok": False, "error": "recording is not enabled"})
