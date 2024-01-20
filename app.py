@@ -1,3 +1,4 @@
+import argparse
 import sys
 import os
 import logging
@@ -6,10 +7,10 @@ import pathlib
 from PyQt6 import QtGui
 from PyQt6.QtWidgets import QApplication
 
-from aipacenotes.main_window import MainWindow
 import aipacenotes.settings.settings_manager
 import aipacenotes.settings.user_settings_manager
 import aipacenotes.util
+from aipacenotes.main_window import MainWindow
 
 # set the windows process' id in order to get the desired task bar icon.
 def set_windows_app_id():
@@ -64,7 +65,7 @@ def set_up_logger():
         fname_log = 'aipacenotes.log'
 
         dirname_tmp = '{}/AppData/Local/BeamNG.drive/latest/temp'.format(hom)
-        dirname_tmp = aipacenotes.settings_manager.expand_windows_symlinks(dirname_tmp)
+        dirname_tmp = aipacenotes.settings.settings_manager.expand_windows_symlinks(dirname_tmp)
         dirname_tmp = os.path.normpath(dirname_tmp)
         dirname_tmp = aipacenotes.util.normalize_path(dirname_tmp)
         pathlib.Path(dirname_tmp).mkdir(parents=False, exist_ok=True)
@@ -115,6 +116,19 @@ def start_app():
     app.exec()
 
 def main():
+    parser = argparse.ArgumentParser(description="The A.I. Pacenotes desktop app.")
+    parser.add_argument("--local-vocalizer", action="store_true", default=False,
+                        help="Enable local vocalizer mode")
+
+    args = parser.parse_args()
+
+    aipacenotes.settings.set_local_vocalizer(args.local_vocalizer)
+    if aipacenotes.settings.get_local_vocalizer():
+        print('local vocalizer')
+    else:
+        print('remote vocalizer')
+
+
     set_windows_app_id()
     start_app()
 

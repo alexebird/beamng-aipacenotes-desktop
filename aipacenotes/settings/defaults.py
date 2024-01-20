@@ -12,9 +12,13 @@ default_settings = {
     'transcripts_fname':   '$settings_dir/transcripts.json',
     'recording_cut_delay': 0.3,
     'voice_files': [
+        # voices from zipped mod in repo.
         '$mods_dir/repo/aipacenotes.zip/settings/aipacenotes/default.voices.json',
+        # voices from zipped mod at mods root.
         '$mods_dir/aipacenotes.zip/settings/aipacenotes/default.voices.json',
+        # voices from unzipped mod during development.
         '$unpacked_mod_dir/settings/aipacenotes/default.voices.json',
+        # voices from user settings.
         '$settings_dir/user.voices.json',
     ]
 }

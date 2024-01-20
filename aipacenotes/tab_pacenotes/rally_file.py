@@ -217,7 +217,7 @@ class NotebookFile:
     def __init__(self, fname):
         self.fname = aipacenotes.util.normalize_path(fname)
         self.ensure_pacenotes_dir()
-        self._mission_voices = None
+        # self._mission_voices = None
 
     def __str__(self):
         return aipacenotes.util.normalize_path(self.fname)
@@ -231,20 +231,20 @@ class NotebookFile:
     def aipacenotes_dir(self):
         return aipacenotes.util.normalize_path(os.path.join(self.dirname(), '..'))
 
-    def load_mission_voices(self):
-        voices_fname = os.path.join(self.dirname(), '..', 'mission.voices.json')
-        self._mission_voices = {}
+    # def load_mission_voices(self):
+    #     voices_fname = os.path.join(self.dirname(), '..', 'mission.voices.json')
+    #     self._mission_voices = {}
+    #
+    #     if os.path.isfile(voices_fname):
+    #         with open(voices_fname, 'r') as f:
+    #             voices_data = json.load(f)
+    #             for k,v in voices_data.items():
+    #                 self._mission_voices[k] = v
 
-        if os.path.isfile(voices_fname):
-            with open(voices_fname, 'r') as f:
-                voices_data = json.load(f)
-                for k,v in voices_data.items():
-                    self._mission_voices[k] = v
-
-    def mission_voice_config(self, voice):
-        if not self._mission_voices:
-            self.load_mission_voices()
-        return self._mission_voices.get(voice, None)
+    # def mission_voice_config(self, voice):
+    #     if not self._mission_voices:
+    #         self.load_mission_voices()
+    #     return self._mission_voices.get(voice, None)
 
     def ensure_pacenotes_dir(self):
         pathlib.Path(self.pacenotes_dir()).mkdir(parents=False, exist_ok=True)

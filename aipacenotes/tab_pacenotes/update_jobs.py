@@ -39,20 +39,13 @@ class UpdateJob:
     def run(self, done_signal):
         logging.debug(f"UpdateJob.run '{self.pacenote}'")
 
-        # self._updated_at = time.time()
         self.update_ago_cache()
 
         voice = self.pacenote.voice()
-        vc_settings = self.store.settings_manager.voice_config(voice)
-        vc_mission = self.pacenote.notebook.notebook_file.mission_voice_config(voice)
-
-        voice_config = vc_settings
-        # if there is a mission voice file, prioritize that over the settings files.
-        if vc_mission:
-            voice_config = vc_mission
+        voice_config = self.store.settings_manager.voice_config(voice)
 
         if voice_config:
-            response = aip_client.post_create_pacenotes_audio(
+            response = aip_client.post_create_pacenote_audio(
                 self.pacenote.note(),
                 voice_config,
             )
@@ -173,9 +166,22 @@ class UpdateJobsStore:
                 err_rv = True
 
         rv = lock_rv or err_rv
-        logging.debug(f"UpdateJobsStore.has_job_for_pacenote {pacenote.short_name()} | lock_rv={lock_rv} err_rv={err_rv} rv={rv}")
+        # logging.debug(f"UpdateJobsStore.has_job_for_pacenote {pacenote.short_name()} | lock_rv={lock_rv} err_rv={err_rv} rv={rv}")
 
         return rv
+
+    def clear_error_for_pacenote(self, pacenote):
+        id = pacenote_job_id(pacenote)
+
+        # if id in self.pacenote_ids_lock:
+        #     job = self.pacenote_ids_lock[id]
+        #     if job is not None:
+        #         self.clear_lock(job)
+
+        if id in self.pacenote_ids_error:
+            job = self.pacenote_ids_error[id]
+            if job is not None:
+                self.clear_error(job)
 
     def count_by_status(self):
         counts = {}

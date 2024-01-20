@@ -8,6 +8,15 @@ import re
 from . import defaults
 import aipacenotes.util
 
+local_vocalizer = False
+
+def set_local_vocalizer(value):
+    global local_vocalizer
+    local_vocalizer = value
+
+def get_local_vocalizer():
+    return local_vocalizer
+
 def deep_merge(dict1, dict2):
     result = dict1.copy()  # Start with dict1's keys and values
     for key, value in dict2.items():  # Add dict2's keys and values
@@ -64,7 +73,7 @@ class SettingsManager():
 
     def __init__(self, status_bar):
         self.status_bar = status_bar
-        self.voices = None
+        self.voices = {}
 
     def update_status_left(self, txt):
         self.status_bar.updateLeftLabel.emit(txt)
@@ -160,6 +169,7 @@ class SettingsManager():
 
         for e in voices_files:
             if ext in e:
+                # handle zip files.
                 logging.debug(f"voice file ({ext}): {e}")
                 count = 0
                 zip_fname, inner_fname = self.split_path_after_ext(ext, e)
@@ -172,6 +182,7 @@ class SettingsManager():
                             count += 1
                 logging.debug(f"added {count} voices")
             else:
+                # handle non-zip files.
                 logging.debug(f"voice file: {e}")
                 count = 0
                 if os.path.isfile(e):
