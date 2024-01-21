@@ -190,8 +190,8 @@ class PacenotesTabWidget(QWidget):
         def _play(fname):
             # self.settings_manager.update_status_left(f"played {fname}")
             data, samplerate = sf.read(fname)
-            volume_factor = 0.4
-            data = data * volume_factor
+            # volume_factor = 0.4 # ie have effect of lowering the gain.
+            # data = data * volume_factor
             sd.play(data, samplerate)
             sd.wait()
 

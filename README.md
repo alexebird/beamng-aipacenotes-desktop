@@ -5,18 +5,13 @@ USAGE
 ---
 
 1. open a windows command prompt terminal
-2. cd to the repo
+2. cd to the repo, activate virtualenv, run.
 ```
 cd C:\Users\bird\Desktop\beam-bird\gh_repos\beamng-aipacenotes-desktop
-```
-3. activate virtualenv. run:
-```
 .\aip\Scripts\activate
-```
-4. run app:
-```
 set AIP_DEV=t
 python app.py
+python app.py --local-vocalizer
 ```
 
 PACKAGING
