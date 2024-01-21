@@ -125,8 +125,8 @@ def main():
     aipacenotes.settings.set_local_vocalizer(args.local_vocalizer)
     if aipacenotes.settings.get_local_vocalizer():
         print('local vocalizer')
-    else:
-        print('remote vocalizer')
+    # else:
+        # print('remote vocalizer')
 
 
     set_windows_app_id()
