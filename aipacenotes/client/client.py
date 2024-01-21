@@ -39,8 +39,9 @@ def mkurl(suffix):
 #     else:
 #         return True
 
-def post_create_pacenote_audio(note_text, voice_config):
+def post_create_pacenote_audio(note_name, note_text, voice_config):
     data = {
+        "note_name": note_name,
         "note_text": note_text,
         "voice_config": voice_config,
     }

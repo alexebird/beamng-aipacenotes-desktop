@@ -46,6 +46,7 @@ class UpdateJob:
 
         if voice_config:
             response = aip_client.post_create_pacenote_audio(
+                self.pacenote.name(),
                 self.pacenote.note(),
                 voice_config,
             )
