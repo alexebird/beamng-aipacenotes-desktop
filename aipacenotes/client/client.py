@@ -62,9 +62,8 @@ def post_transcribe(fname):
             HEADER_UUID: aipacenotes.settings.user_settings.get_uuid(),
         }
         response = requests.post(mkurl(transcribe_url), files=files, headers=headers)
-        return response
 
-        # try:
-        #     return response.json()
-        # except requests.exceptions.JSONDecodeError:
-        #     return None
+        try:
+            return response.json()
+        except requests.exceptions.JSONDecodeError:
+            return None
