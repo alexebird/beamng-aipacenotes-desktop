@@ -3,8 +3,9 @@ import queue
 from .proxy_request import ProxyRequest
 
 class ProxyRequestManager:
-    def __init__(self, signal):
-        self.signal = signal
+    def __init__(self, signal_added, signal_done):
+        self.signal_added = signal_added
+        self.signal_done = signal_done
         self.request_q = queue.Queue()
         self.request_l = []
 
@@ -19,10 +20,12 @@ class ProxyRequestManager:
         proxy_req = ProxyRequest(request)
         self.request_l.append(proxy_req)
         self.request_q.put(proxy_req)
-        self.signal.emit()
+        self.signal_added.emit()
         return proxy_req
 
     def run(self):
         proxy_req = self.request_q.get()
+        print('pre execute')
         proxy_req.execute()
-        self.signal.emit()
+        print('post execute')
+        self.signal_done.emit()

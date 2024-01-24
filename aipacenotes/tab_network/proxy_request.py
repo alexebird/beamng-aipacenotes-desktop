@@ -12,6 +12,8 @@ if aipacenotes.util.is_dev() and aipacenotes.util.is_mac():
 else:
     BASE_URL = 'https://aipacenotes.alxb.us'
 
+# BASE_URL = 'http://192.168.1.76:3000'
+
 headers = [
     { 'name': 'http status', 'width': 200 },
     { 'name': 'duration', 'width': 100 },
@@ -32,6 +34,7 @@ class ProxyRequest:
         self.response = None
         self.response_json = None
         self.duration_ms = None
+        self._request_size = None
 
     @staticmethod
     def do_healthcheck(api_key):

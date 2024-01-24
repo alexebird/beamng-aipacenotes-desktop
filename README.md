@@ -17,6 +17,15 @@ python app.py --local-vocalizer
 PACKAGING
 ---
 
+### Non-exe-style distribution:
+```
+cd C:\Users\bird\Documents\GitHub\beamng-aipacenotes-desktop
+.\aip\Scripts\activate
+python app.py
+```
+
+### exe-style distribution
+
 This windows GUI app watches your BeamNG.drive user folder for pacenotes.json files, and creates audio files from pacenote text.
 
 Used by the [AI Pacenotes](https://www.beamng.com/resources/a-i-rally-pacenotes.27352/) mod.

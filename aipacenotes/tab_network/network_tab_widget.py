@@ -16,13 +16,14 @@ from .proxy_request_manager import ProxyRequestManager
 class NetworkTabWidget(QWidget):
 
     proxy_request = pyqtSignal()
+    proxy_request_done = pyqtSignal()
 
     def __init__(self, settings_manager):
         super().__init__()
 
         self.settings_manager = settings_manager
 
-        self.proxy_request_manager = ProxyRequestManager(self.proxy_request)
+        self.proxy_request_manager = ProxyRequestManager(self.proxy_request, self.proxy_request_done)
 
         self.server_thread = ServerThread(self.proxy_request_manager)
         self.server_thread.start()
@@ -37,6 +38,7 @@ class NetworkTabWidget(QWidget):
         self.on_endpoint_recording_cut = self.server_thread.on_recording_cut
 
         self.proxy_request.connect(self.on_proxy_request)
+        self.proxy_request_done.connect(self.on_proxy_request_done)
 
         self.requests_table_model = RequestsTableModel(self.proxy_request_manager)
         self.requests_table = RequestsTable()
@@ -49,7 +51,13 @@ class NetworkTabWidget(QWidget):
 
     def on_proxy_request(self):
         self.requests_table_model.layoutChanged.emit()
+        print('on_proxy_request')
         self.task_manager.submit(self.proxy_request_manager.run)
+
+    def on_proxy_request_done(self):
+        self.requests_table_model.layoutChanged.emit()
+        print('on_proxy_request_done')
+        # self.task_manager.submit(self.proxy_request_manager.run)
 
     def on_timer_timeout(self):
         pass
