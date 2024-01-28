@@ -11,13 +11,13 @@ class Transcript:
     col_count = 5
     table_headers = ["Text", "File", "Timestamp", "Source", "Vehicle Data"]
 
-    def __init__(self, src, fname, vehicle_data, ts=time.time(), text=None, success=False):
+    def __init__(self, src, fname, vehicle_data, ts=None, text=None, success=False):
         self.oldId = 0 # needed for loading into beamng
         self.src = src
         self.fname = fname
         self.beam_fname = None
         self.vehicle_data = vehicle_data
-        self.ts = ts
+        self.ts = ts or time.time()
         self.text = text
         self.success = success
 

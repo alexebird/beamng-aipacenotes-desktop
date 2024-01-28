@@ -1,4 +1,5 @@
 import logging
+import pathlib
 import queue
 import tempfile
 import time
@@ -52,6 +53,7 @@ class RecordingThread(QThread):
     def setup_tmp_dir(self):
         if aipacenotes.util.is_dev():
             self.tmpdir = 'tmp\\audio'
+            pathlib.Path(self.tmpdir).mkdir(parents=True, exist_ok=True)
         else:
             self.tmpdir = self.settings_manager.get_tempdir()
 
