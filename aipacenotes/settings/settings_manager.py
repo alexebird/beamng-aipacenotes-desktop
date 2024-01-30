@@ -74,6 +74,7 @@ class SettingsManager():
     def __init__(self, status_bar):
         self.status_bar = status_bar
         self.voices = {}
+        self.static_pacenotes = None
 
     def update_status_left(self, txt):
         self.status_bar.updateLeftLabel.emit(txt)
@@ -100,10 +101,48 @@ class SettingsManager():
         return self.settings['recording_cut_delay']
 
     def get_pacenotes_search_paths(self):
-        return self.settings['pacenotes_search_paths']
+        return self.settings['notebooks_search_paths']
 
     def get_transcript_fname(self):
-        return os.path.join(self.get_settings_dir(), self.settings['transcripts_fname'])
+        # print(self.get_settings_dir())
+        # print(self.settings['transcripts_fname'])
+        # print(os.path.join(self.get_settings_dir(), self.settings['transcripts_fname']))
+        return self.settings['transcripts_fname']
+
+    def get_static_pacenotes(self, force=False):
+        if force:
+            self.static_pacenotes = None
+
+        if self.static_pacenotes is not None:
+            return self.static_pacenotes
+
+        fnames = self.settings['static_pacenotes_fnames']
+        fnames = copy.deepcopy(fnames)
+        fnames.reverse()
+
+        static_pacenotes = {}
+        ext = '.zip'
+
+        for fname in fnames:
+            if ext in fname:
+                # handle zip files.
+                zip_fname, inner_fname = self.split_path_after_ext(ext, fname)
+                if zip_fname and os.path.isfile(zip_fname):
+                    data = aipacenotes.util.read_file_from_zip(zip_fname, inner_fname)
+                    if data:
+                        static_pacenotes = json.loads(data)
+                        logging.info(f"found static_pacenotes at {fname}")
+                        break
+            else:
+                # handle non-zip files.
+                if os.path.isfile(fname):
+                    with open(fname, 'r') as file:
+                        static_pacenotes = json.load(file)
+                        logging.info(f"found static_pacenotes at {fname}")
+                        break
+
+        self.static_pacenotes = static_pacenotes.get('static_pacenotes', [])
+        return self.static_pacenotes
 
     def get_settings_dir(self):
         val = self.settings['settings_dir']
@@ -116,7 +155,7 @@ class SettingsManager():
         return  val
 
     def get_settings_path_user(self):
-        return self.settings['settings_path_user']
+        return self.settings['settings_fname_user']
 
     def expand_path(self, vars, fname):
         fname = self.replace_vars(vars, fname)
@@ -160,6 +199,7 @@ class SettingsManager():
         self.pretty_print('settings', self.settings)
 
         self.load_voices()
+        self.get_static_pacenotes(True)
 
     def load_voices(self):
         voices_files = self.settings['voice_files']

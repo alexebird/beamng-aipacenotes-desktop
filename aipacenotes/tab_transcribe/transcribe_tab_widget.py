@@ -126,7 +126,6 @@ class TranscribeTabWidget(QWidget):
         self.transcript_store = TranscriptStore(self.fname_transcript)
         self.server_thread.set_transcript_store(self.transcript_store)
 
-
         self.transcribe_done.connect(self.on_transcribe_done)
         self.device_refreshed.connect(self.on_device_refreshed)
 

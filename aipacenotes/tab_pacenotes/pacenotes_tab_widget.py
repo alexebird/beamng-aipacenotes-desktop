@@ -123,8 +123,8 @@ class PacenotesTabWidget(QWidget):
 
         layout = QVBoxLayout()
 
-        self.notebook_info_label = QLabel("")
-        layout.addWidget(self.notebook_info_label)
+        # self.notebook_info_label = QLabel("")
+        # layout.addWidget(self.notebook_info_label)
 
         self.jobs_model = UpdateJobsTableModel(self.update_jobs_store)
         jobs_table = UpdateJobsTable()

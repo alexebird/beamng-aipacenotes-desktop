@@ -32,8 +32,8 @@ class RallyFileScanner:
             matches = pathlib.Path(search_path).rglob(self.pattern)
 
             for match in matches:
-                rally = NotebookFile(match)
+                rally = NotebookFile(match, self.settings_manager)
                 rally.load()
                 sp.rally_files.append(rally)
-            
+
             self.search_paths.append(sp)

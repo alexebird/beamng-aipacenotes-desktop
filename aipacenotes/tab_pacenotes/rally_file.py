@@ -75,7 +75,6 @@ class Pacenote:
         file_doesnt_exist = not self.note_file_exists()
         unknown = self.note() == aipacenotes.util.UNKNOWN_PLACEHOLDER
         empty = self.note() == aipacenotes.util.EMPTY_PLACEHOLDER
-        # empty = self.note().strip() == ""
         rv = file_doesnt_exist and not unknown and not empty
         if rv:
             logging.info(f"Pacenote.needs_update() {self.short_name()} | file_doesnt_exist={file_doesnt_exist} unknown={unknown} empty={empty} rv={rv}")
@@ -103,7 +102,6 @@ class Notebook:
         self.notebook_file = notebook_file
         self.data = data
         self._pacenotes = None
-        # self._static_pacenotes = None
 
     def __str__(self):
         return self.name()
@@ -113,9 +111,6 @@ class Notebook:
 
     def name(self):
         return self.data['name']
-
-    def clean_name(self):
-        return aipacenotes.util.clean_name_for_path(self.name())
 
     def pacenotes(self, use_cache=True):
         if not use_cache:
@@ -129,13 +124,13 @@ class Notebook:
 
         def concat_note_data(note_data):
             before = note_data.get('before', '')
-            if before == aipacenotes.util.AUTOFILL_BLOCKER:
+            if before == aipacenotes.util.AUTOFILL_BLOCKER or before == aipacenotes.util.AUTOFILL_BLOCKER_INTERNAL:
                 before = ''
             note   = note_data.get('note', '')
-            if note == aipacenotes.util.AUTOFILL_BLOCKER:
+            if note == aipacenotes.util.AUTOFILL_BLOCKER or note == aipacenotes.util.AUTOFILL_BLOCKER_INTERNAL:
                 note = ''
             after  = note_data.get('after', '')
-            if after == aipacenotes.util.AUTOFILL_BLOCKER:
+            if after == aipacenotes.util.AUTOFILL_BLOCKER or after == aipacenotes.util.AUTOFILL_BLOCKER_INTERNAL:
                 after = ''
 
             rv = ' '.join([before, note, after]).strip()
@@ -156,6 +151,7 @@ class Notebook:
                         pacenote = Pacenote(self, pn_data_copy)
                         pacenotes.append(pacenote)
 
+
             for pacenote_data in self.data.get('static_pacenotes', []):
                 # for each note language, make a copy of the whole note data.
                 for lang,note_data in pacenote_data['notes'].items():
@@ -173,40 +169,9 @@ class Notebook:
 
         return self._pacenotes
 
-    # def static_pacenotes(self, use_cache=True):
-    #     if not use_cache:
-    #         self._static_pacenotes = None
-    #
-    #     if self._static_pacenotes:
-    #         return self._static_pacenotes
-    #
-    #     codrivers = self.data['codrivers']
-    #     pacenotes = []
-    #
-    #     def concat_note_data(note_data):
-    #         before = note_data.get('before', '')
-    #         note   = note_data.get('note', '')
-    #         after  = note_data.get('after', '')
-    #         return ' '.join([before, note, after]).strip()
-    #
-    #     for codriver_data in codrivers:
-    #         for pacenote_data in self.data['static_pacenotes']:
-    #             # for each note language, make a copy of the whole note data.
-    #             for lang,note_data in pacenote_data['notes'].items():
-    #                 if codriver_data['language'] == lang:
-    #                     pn_data_copy = copy.deepcopy(pacenote_data)
-    #                     pn_data_copy['note'] = concat_note_data(note_data)
-    #                     pn_data_copy['language'] = lang
-    #                     pn_data_copy['codriver'] = codriver_data # copy.deepcopy(codriver_data)
-    #                     pacenote = Pacenote(self, pn_data_copy)
-    #                     pacenotes.append(pacenote)
-    #
-    #     self._static_pacenotes = pacenotes
-    #
-    #     return self._static_pacenotes
-
     def pacenotes_dir(self):
-        return aipacenotes.util.normalize_path(os.path.join(self.notebook_file.pacenotes_dir(), self.clean_name()))
+        notebook_clean_fname = aipacenotes.util.clean_name_for_path(self.notebook_file.basenameNoExt())
+        return aipacenotes.util.normalize_path(os.path.join(self.notebook_file.pacenotes_dir(), notebook_clean_fname))
 
     def ensure_pacenotes_dir(self):
         self.notebook_file.ensure_pacenotes_dir()
@@ -214,10 +179,10 @@ class Notebook:
 
 class NotebookFile:
 
-    def __init__(self, fname):
+    def __init__(self, fname, settings_manager):
         self.fname = aipacenotes.util.normalize_path(fname)
         self.ensure_pacenotes_dir()
-        # self._mission_voices = None
+        self.settings_manager = settings_manager
 
     def __str__(self):
         return aipacenotes.util.normalize_path(self.fname)
@@ -231,26 +196,16 @@ class NotebookFile:
     def aipacenotes_dir(self):
         return aipacenotes.util.normalize_path(os.path.join(self.dirname(), '..'))
 
-    # def load_mission_voices(self):
-    #     voices_fname = os.path.join(self.dirname(), '..', 'mission.voices.json')
-    #     self._mission_voices = {}
-    #
-    #     if os.path.isfile(voices_fname):
-    #         with open(voices_fname, 'r') as f:
-    #             voices_data = json.load(f)
-    #             for k,v in voices_data.items():
-    #                 self._mission_voices[k] = v
-
-    # def mission_voice_config(self, voice):
-    #     if not self._mission_voices:
-    #         self.load_mission_voices()
-    #     return self._mission_voices.get(voice, None)
-
     def ensure_pacenotes_dir(self):
         pathlib.Path(self.pacenotes_dir()).mkdir(parents=False, exist_ok=True)
 
     def basename(self):
         return os.path.basename(self.fname)
+
+    def basenameNoExt(self):
+        base, _ = os.path.splitext(self.basename())
+        base, _ = os.path.splitext(base)
+        return base
 
     def file_explorer_path(self):
         return self.dirname()
@@ -258,6 +213,8 @@ class NotebookFile:
     def load(self):
         with open(self.fname) as f:
             self.data = json.load(f)
+
+        self.data['static_pacenotes'] = self.settings_manager.get_static_pacenotes()
 
     def notebook(self):
         return Notebook(self, self.data)

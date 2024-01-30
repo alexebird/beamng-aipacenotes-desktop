@@ -5,6 +5,7 @@ import zipfile
 import logging
 
 AUTOFILL_BLOCKER = '#'
+AUTOFILL_BLOCKER_INTERNAL = '<none>'
 UNKNOWN_PLACEHOLDER = '[unknown]'
 EMPTY_PLACEHOLDER = '[empty]'
 
@@ -64,8 +65,9 @@ def read_file_from_zip(zip_path, file_name):
 def open_file_explorer(file_path):
     if os.path.isfile(file_path):
         file_path = os.path.dirname(file_path)
-    logging.info(f"opening {file_path}")
-    os.startfile(file_path)
+    if os.path.isdir(file_path):
+        logging.info(f"opening {file_path}")
+        os.startfile(file_path)
 
 def byte_str(num_bytes):
     if isinstance(num_bytes, str):
