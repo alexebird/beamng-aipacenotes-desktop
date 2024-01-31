@@ -46,7 +46,7 @@ def read_file_from_zip(zip_path, file_name):
             try:
                 with z.open(file_name) as f:
                     # Read the file contents
-                    contents = f.read()
+                    contents = f.read().decode('utf-8')
                     # Return or process the contents
                     return contents
             except KeyError:

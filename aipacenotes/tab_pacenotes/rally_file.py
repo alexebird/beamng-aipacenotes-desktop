@@ -43,9 +43,17 @@ class Pacenote:
         return self.codriver()['name']
 
     def note_hash(self):
+        s = self.note()
+        # Convert the string to a bytes object, assuming UTF-8 encoding
+        byte_sequence = s.encode('utf-8')
+
+        # Convert each byte to its hexadecimal representation
+        hex_string = ''.join('{:02x}'.format(byte) for byte in byte_sequence)
+
+        # Calculate the hash value
         hash_value = 0
-        for char in self.note():
-            hash_value = (hash_value * 33 + ord(char)) % 2_147_483_647
+        for hex_char in hex_string:
+            hash_value = (hash_value * 33 + ord(hex_char)) % 2147483647
         return hash_value
 
     def note_basename(self):

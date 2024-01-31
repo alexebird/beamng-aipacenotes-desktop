@@ -136,7 +136,7 @@ class SettingsManager():
             else:
                 # handle non-zip files.
                 if os.path.isfile(fname):
-                    with open(fname, 'r') as file:
+                    with open(fname, 'r', encoding='utf-8') as file:
                         static_pacenotes = json.load(file)
                         logging.info(f"found static_pacenotes at {fname}")
                         break
