@@ -1,4 +1,6 @@
 import os
+import webbrowser
+import pprint
 import logging
 import sounddevice as sd
 import soundfile as sf
@@ -8,17 +10,22 @@ from PyQt6.QtCore import (
     pyqtSignal,
 )
 
+from PyQt6.QtGui import QCursor
+
 from PyQt6.QtWidgets import (
-    QSplitter,
-    QLabel,
-    QWidget,
-    QPushButton,
-    QVBoxLayout,
     QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
 )
 
 import aipacenotes.util
 from aipacenotes.concurrency import TaskManager, TimerThread
+from aipacenotes import client as aip_client
 from .pacenotes_table import NotebookTable, NotebookTableModel
 from .pacenotes_tree_widget import PacenotesTreeWidget
 from .update_jobs import (
@@ -31,16 +38,33 @@ from .update_jobs import (
 from .update_jobs_table import UpdateJobsTable, UpdateJobsTableModel
 from .vertical_progress_bar import VerticalColorSegmentProgressBar
 
+class ClickableLabel(QLabel):
+    def __init__(self, text, url, parent=None):
+        super().__init__(text, parent)
+        self.url = url
+
+        # Set the style to look like a hyperlink
+        self.setStyleSheet("color: blue; text-decoration: underline;")
+
+        # Set the cursor to a hand pointer
+        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+
+    def mousePressEvent(self, event):
+        webbrowser.open(self.url)
+
 class PacenotesTabWidget(QWidget):
 
     pacenote_updated = pyqtSignal()
     job_run_finished = pyqtSignal(UpdateJob)
     tree_refreshed = pyqtSignal()
+    translate_finished = pyqtSignal()
 
     def __init__(self, settings_manager):
         super().__init__()
 
         self.settings_manager = settings_manager
+
+        self.translate_in_progress = False
 
         self.controls_pane = QWidget()
         # stylesheet = """
@@ -64,6 +88,7 @@ class PacenotesTabWidget(QWidget):
 
         self.job_run_finished.connect(self.on_job_run_finished)
         self.tree_refreshed.connect(self.on_tree_refreshed)
+        self.translate_finished.connect(self.on_translate_finished)
 
         self.tree = PacenotesTreeWidget(self.settings_manager)
         self.tree.notebookSelectionChanged.connect(self.on_tree_notebook_selection_changed)
@@ -82,10 +107,37 @@ class PacenotesTabWidget(QWidget):
 
         self.splitter.addWidget(tree_wrapper)
 
-        layout = QVBoxLayout()
 
-        self.notebook_info_label = QLabel("")
-        layout.addWidget(self.notebook_info_label)
+        layout2 = QHBoxLayout()
+        # self.btn_save = QPushButton("Save Translation")
+        # self.btn_save.setFixedWidth(110)
+        # self.btn_save.clicked.connect(self.on_btn_save_clicked)
+        # layout2.addWidget(self.btn_save)
+        self.notebook_info_label = QLabel("# of pacenotes: 0")
+        self.notebook_info_label.setFixedWidth(120)
+        # layout2.setAlignment(self.notebook_info_label, Qt.AlignmentFlag.AlignLeft)
+        layout2.addWidget(self.notebook_info_label)
+
+        self.line_edit_lang_code = QLineEdit()
+        self.line_edit_lang_code.setPlaceholderText('Language Code')
+        self.line_edit_lang_code.setFixedWidth(100)
+        layout2.addWidget(self.line_edit_lang_code)
+
+        self.line_edit_lang_name = QLineEdit()
+        self.line_edit_lang_name.setPlaceholderText('Language Name')
+        self.line_edit_lang_name.setFixedWidth(100)
+        layout2.addWidget(self.line_edit_lang_name)
+
+        self.btn_translate = QPushButton("Translate")
+        self.btn_translate.setFixedWidth(100)
+        self.btn_translate.clicked.connect(self.on_btn_translate_clicked)
+        # layout2.setAlignment(self.btn_translate, Qt.AlignmentFlag.AlignLeft)
+        layout2.addWidget(self.btn_translate)
+
+        self.lang_code_help = ClickableLabel("language codes help", "https://cloud.google.com/translate/docs/languages")
+        layout2.addWidget(self.lang_code_help)
+
+        layout2.addStretch()
 
         self.notebook_table = NotebookTable()
 
@@ -98,6 +150,10 @@ class PacenotesTabWidget(QWidget):
         self.notebook_table.setColumnWidth(4, 150)
         self.notebook_table.setColumnWidth(5, 250)
         self.notebook_table.play_clicked.connect(self.play_audio)
+        self.update_notebook_info_label()
+
+        layout = QVBoxLayout()
+        layout.addLayout(layout2)
         layout.addWidget(self.notebook_table)
 
         self.table_controls = QWidget()
@@ -122,9 +178,6 @@ class PacenotesTabWidget(QWidget):
 
 
         layout = QVBoxLayout()
-
-        # self.notebook_info_label = QLabel("")
-        # layout.addWidget(self.notebook_info_label)
 
         self.jobs_model = UpdateJobsTableModel(self.update_jobs_store)
         jobs_table = UpdateJobsTable()
@@ -222,11 +275,6 @@ class PacenotesTabWidget(QWidget):
 
         notebook_file.load()
         notebook = notebook_file.notebook()
-
-        # for pn in notebook.static_pacenotes():
-            # print(pn)
-
-        # combined_pacenotes = notebook.pacenotes().copy() + notebook.static_pacenotes().copy()
 
         for pacenote in notebook.pacenotes():
             if pacenote.needs_update():
@@ -343,4 +391,80 @@ class PacenotesTabWidget(QWidget):
         self.tree.expandAll()
 
     def on_timer_timeout(self):
-        self.task_manager.submit(self.refresh_pacenotes)
+        if not self.translate_in_progress:
+            self.task_manager.submit(self.refresh_pacenotes)
+
+    def perform_translate(self):
+        notebook_file = self.notebook_table_model.notebook_file
+        if not notebook_file:
+            return
+
+        notebook_file.load()
+        notebook = notebook_file.notebook()
+
+        input_lang = 'english'
+        target_lang_code = self.line_edit_lang_code.text()
+        target_lang_name = self.line_edit_lang_name.text()
+
+        skip_strings = {
+            aipacenotes.util.AUTOFILL_BLOCKER: True,
+            aipacenotes.util.AUTOFILL_BLOCKER_INTERNAL: True,
+        }
+
+        translation_input = {
+            "input_language": input_lang,
+            "target_language_code": target_lang_code,
+            "target_language_name": target_lang_name,
+            "skip_strings": skip_strings,
+            "pacenotes": notebook.pacenotes_for_translation(input_lang),
+        }
+
+        response = aip_client.post_translate_all(translation_input)
+        logging.info(response)
+        if response['ok']:
+            pacenotes = response['pacenotes']
+            notebook_file.update_with_translation(pacenotes, target_lang_name)
+            notebook.pacenotes(use_cache=False)
+            pprint.pprint(notebook_file.data)
+            notebook_file.save()
+            print('translation done')
+        else:
+            logging.error(f"translation response error: {response['msg']}")
+
+        self.translate_finished.emit()
+
+    def on_translate_finished(self):
+        dialog = QMessageBox()
+        dialog.setWindowTitle("Translation")
+        dialog.setText("Translation completed.\nThe notebook file was saved and a backup file was be created.\n(check logs/terminal for path).")
+        dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
+        retval = dialog.exec()
+
+        self.btn_translate.setEnabled(True)
+        self.btn_translate.setText("Translate")
+        self.translate_in_progress = False
+
+    def on_btn_translate_clicked(self):
+        if not self.notebook_table_model.notebook_file:
+            return
+
+        self.translate_in_progress = True
+
+        self.btn_translate.setEnabled(False)
+        self.btn_translate.setText("Translating...")
+
+        # dialog = QMessageBox()
+        # dialog.setWindowTitle("Translation")
+        # dialog.setText("Translation in progress.")
+        # dialog.setStandardButtons(QMessageBox.StandardButton.Ok)
+        # retval = dialog.exec()
+
+        self.task_manager.submit(self.perform_translate)
+
+    # def on_btn_save_clicked(self):
+    #     def _perform_save():
+    #         notebook_file = self.notebook_table_model.notebook_file
+    #         if notebook_file:
+    #             notebook_file.save()
+    #
+    #     self.task_manager.submit(_perform_save)

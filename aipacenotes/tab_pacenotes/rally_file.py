@@ -1,4 +1,6 @@
 import copy
+import shutil
+import time
 import json
 import logging
 import os
@@ -120,6 +122,22 @@ class Notebook:
     def name(self):
         return self.data['name']
 
+    def pacenotes_for_translation(self, input_lang):
+        translate_notes = []
+
+        for pacenote in self.data['pacenotes']:
+            old_id = pacenote['oldId']
+            # name = pacenote['name']
+            note_data = pacenote['notes']
+            note = {
+                'oldId': old_id,
+                # 'name': name,
+                'notes': { input_lang: note_data[input_lang] },
+            }
+            translate_notes.append(note)
+
+        return translate_notes
+
     def pacenotes(self, use_cache=True):
         if not use_cache:
             self._pacenotes = None
@@ -160,7 +178,7 @@ class Notebook:
                         pacenotes.append(pacenote)
 
 
-            for pacenote_data in self.data.get('static_pacenotes', []):
+            for pacenote_data in self.notebook_file.static_pacenotes:
                 # for each note language, make a copy of the whole note data.
                 for lang,note_data in pacenote_data['notes'].items():
                     if codriver_data['language'] == lang:
@@ -170,8 +188,6 @@ class Notebook:
                         pn_data_copy['codriver'] = codriver_data # copy.deepcopy(codriver_data)
                         pacenote = Pacenote(self, pn_data_copy)
                         pacenotes.append(pacenote)
-
-
 
         self._pacenotes = pacenotes
 
@@ -191,6 +207,8 @@ class NotebookFile:
         self.fname = aipacenotes.util.normalize_path(fname)
         self.ensure_pacenotes_dir()
         self.settings_manager = settings_manager
+        self.static_pacenotes = None
+        self.data = None
 
     def __str__(self):
         return aipacenotes.util.normalize_path(self.fname)
@@ -219,10 +237,39 @@ class NotebookFile:
         return self.dirname()
 
     def load(self):
-        with open(self.fname) as f:
-            self.data = json.load(f)
+        # with open(self.fname) as f:
+        #     self.data = json.load(f)
 
-        self.data['static_pacenotes'] = self.settings_manager.get_static_pacenotes()
+        f = open(self.fname, "r", encoding= 'utf-8')
+        self.data = json.loads(f.read())
+        f.close()
+
+        self.static_pacenotes = self.settings_manager.get_static_pacenotes()
+
+    def save(self):
+        try:
+            # Create a backup if the file already exists
+            if os.path.exists(self.fname):
+                timestamp = int(time.time())
+                backup_fname = f"{self.fname}.{timestamp}"
+                shutil.copy(self.fname, backup_fname)
+                print(f"backup created: {backup_fname}")
+
+            # Write new data to the file
+            # with open(self.fname, 'w') as f:
+            #     json.dump(self.data, f)
+
+            f = open(self.fname, 'w', encoding= 'utf-8')
+            i = json.dumps(self.data, indent=4, ensure_ascii=False)
+            f.write(i)
+            f.close()
+
+        except IOError as e:
+            print(f"An error occurred while writing to the file: {e}")
+        except TypeError as e:
+            print(f"An error occurred with the data type: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
 
     def notebook(self):
         return Notebook(self, self.data)
@@ -235,3 +282,11 @@ class NotebookFile:
             return aipacenotes.util.normalize_path(match.group(1))
         else:
             raise ValueError(f"couldnt extract mission id from: {self.fname}")
+
+    def update_with_translation(self, translated_notes, target_language_name):
+        for pacenote_data in self.data['pacenotes']:
+            oldId = str(pacenote_data['oldId'])
+            translation = translated_notes[oldId]['notes'][target_language_name]
+            notes_data = pacenote_data['notes']
+            notes_data[target_language_name] = translation
+

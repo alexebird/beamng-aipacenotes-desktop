@@ -8,6 +8,7 @@ HEADER_UUID = 'X-Aip-Client-UUID'
 # healthcheck_url = '/healthcheck'
 create_pacenotes_audio_url = '/pacenotes/audio/create'
 transcribe_url = '/transcribe'
+translate_all_url = '/translate_all'
 
 def mkurl(suffix):
     if aipacenotes.settings.get_local_vocalizer():
@@ -67,3 +68,18 @@ def post_transcribe(fname):
             return response.json()
         except requests.exceptions.JSONDecodeError:
             return None
+
+def post_translate_all(body):
+    data = body
+
+    headers = {
+        "Content-Type": "application/json",
+        HEADER_UUID: aipacenotes.settings.user_settings.get_uuid(),
+    }
+
+    response = requests.post(mkurl(translate_all_url), data=json.dumps(data), headers=headers)
+
+    try:
+        return response.json()
+    except requests.exceptions.JSONDecodeError:
+        return {'ok': False, 'msg': 'couldnt decode json on client side'}
