@@ -157,10 +157,12 @@ class TranscriptStore:
 
     def write_to_file(self):
         with open(self.fname, 'w') as f:
-            f.write(json.dumps(
-                {self.transcripts_key: [tt.as_json() for tt in self.transcripts]},
-                indent=4,
-            ))
+            f.write(
+                json.dumps(
+                    { self.transcripts_key: [tt.as_json() for tt in self.transcripts] },
+                    separators=(',', ':'),
+                )
+            )
 
     def size(self):
         return len(self.transcripts)
