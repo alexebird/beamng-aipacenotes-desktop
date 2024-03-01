@@ -25,6 +25,7 @@ default_settings = {
         '$mods_dir/aipacenotes.zip/settings/aipacenotes/default.voices.json',
         # voices from unzipped mod during development.
         '$unpacked_mod_dir/settings/aipacenotes/default.voices.json',
+        '$beam_user_home/mods/unpacked/aipacenotes',
         # voices from user settings.
         # highest priority.
         '$settings_dir/user.voices.json',
